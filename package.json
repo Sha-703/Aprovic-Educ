@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Aprovic Educ - plateforme d'enseignement du francais (classe inversee, PWA)",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "dev": "concurrently -k -n server,client \"node --watch server/index.js\" \"vite\"",
     "build": "vite build",

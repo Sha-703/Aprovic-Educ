@@ -1,0 +1,18 @@
+# Render Blueprint : un clic "New + Blueprint" sur le repo → service web pre-configure.
+# Build : npm install + vite build | Start : node server/index.js (API + PWA sur le meme port)
+services:
+  - type: web
+    name: aprovic-educ
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/sante
+    envVars:
+      # node:sqlite est utilise par l'API — Node 24 requis
+      - key: NODE_VERSION
+        value: "24"
+      # Secret JWT stable entre les deploiements (genere automatiquement)
+      - key: JWT_SECRET
+        generateValue: true

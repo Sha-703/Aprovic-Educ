@@ -8,10 +8,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '..', 'data');
 const secretFile = path.join(dataDir, 'secret.txt');
 
-// Secret JWT genere une seule fois puis conserve (pour ne pas deconnecter tout le monde)
+// Secret JWT : priorite a la variable d'environnement (stable sur Render),
+// puis fichier local, sinon generation aleatoire
 fs.mkdirSync(dataDir, { recursive: true });
 let secret;
-if (fs.existsSync(secretFile)) {
+if (process.env.JWT_SECRET && process.env.JWT_SECRET.trim()) {
+  secret = process.env.JWT_SECRET.trim();
+} else if (fs.existsSync(secretFile)) {
   secret = fs.readFileSync(secretFile, 'utf8').trim();
 } else {
   secret = crypto.randomBytes(48).toString('hex');

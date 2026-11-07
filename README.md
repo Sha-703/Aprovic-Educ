@@ -32,6 +32,24 @@ npm run build      # genere le dossier dist/
 npm start          # sert l'API + la PWA sur http://localhost:3001
 ```
 
+## Deploiement — Render (gratuit)
+
+Le repo contient un blueprint `render.yaml` : API + front sur le **meme service**.
+
+1. Pousse le projet sur GitHub (deja fait)
+2. Sur [render.com](https://dashboard.render.com) → **New + Blueprint** → connecte le repo `Sha-703/Aprovic-Educ`
+3. Render lit `render.yaml` tout seul (Node 24, build, `/api/sante` comme health check) → **Deploy**
+4. L'app est servie sur `https://aprovic-educ.onrender.com` (HTTPS = PWA installable)
+
+Notes importantes du plan gratuit :
+
+- **Les données (`data/*.db`) et les fichiers `uploads/` sont éphémères** : à chaque
+  redéploiement, la base repart vide (le secret JWT, lui, est conservé via `JWT_SECRET`).
+  Pour un usage réel avec persistance → plan Starter + disque, ou un petit VPS.
+- **Mise en veille après ~15 min d'inactivité** : le premier appel suivant met ~50 s
+  (les tests d'API ne passent que si le service est "réveillé").
+- Chaque push sur `main` redéploie automatiquement.
+
 ## Structure
 
 ```
