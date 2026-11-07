@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="ciel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1230"/>
+      <stop offset="0.5" stop-color="#172554"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="ecran" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="sol" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#0b1230"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#93c5fd" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#93c5fd" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Fond -->
+  <rect width="800" height="1000" fill="url(#ciel)"/>
+  <ellipse cx="400" cy="420" rx="420" ry="360" fill="url(#halo)"/>
+
+  <!-- Etoiles -->
+  <g fill="#ffffff">
+    <circle cx="90" cy="90" r="3" opacity="0.9"/>
+    <circle cx="200" cy="150" r="2" opacity="0.6"/>
+    <circle cx="330" cy="70" r="2.5" opacity="0.8"/>
+    <circle cx="520" cy="120" r="2" opacity="0.5"/>
+    <circle cx="150" cy="260" r="2" opacity="0.5"/>
+    <circle cx="700" cy="300" r="2.5" opacity="0.7"/>
+    <circle cx="620" cy="60" r="3" opacity="0.85"/>
+    <circle cx="60" cy="420" r="2" opacity="0.5"/>
+  </g>
+
+  <!-- Lune -->
+  <circle cx="680" cy="170" r="58" fill="#fde68a" opacity="0.95"/>
+  <circle cx="654" cy="152" r="50" fill="#0b1230" opacity="0.9"/>
+
+  <!-- Grand ecran : la video-lesson -->
+  <g>
+    <rect x="130" y="230" width="540" height="330" rx="26" fill="#0f172a" stroke="#334155" stroke-width="7"/>
+    <rect x="158" y="258" width="484" height="252" rx="16" fill="url(#ecran)"/>
+    <!-- Lecture -->
+    <circle cx="400" cy="372" r="52" fill="#ffffff" opacity="0.96"/>
+    <polygon points="384,344 434,372 384,400" fill="#1d4ed8"/>
+    <!-- Barre de progression -->
+    <rect x="188" y="478" width="424" height="12" rx="6" fill="#ffffff" opacity="0.35"/>
+    <rect x="188" y="478" width="176" height="12" rx="6" fill="#fbbf24"/>
+    <!-- Pied -->
+    <rect x="378" y="560" width="44" height="44" fill="#0f172a"/>
+    <rect x="330" y="600" width="140" height="16" rx="8" fill="#0f172a"/>
+  </g>
+
+  <!-- Bulles : apprentissage en classe -->
+  <g>
+    <rect x="88" y="626" width="150" height="74" rx="18" fill="#1d4ed8"/>
+    <polygon points="120,698 152,698 126,724" fill="#1d4ed8"/>
+    <circle cx="130" cy="663" r="9" fill="#ffffff"/>
+    <circle cx="163" cy="663" r="9" fill="#ffffff" opacity="0.75"/>
+    <circle cx="196" cy="663" r="9" fill="#ffffff" opacity="0.5"/>
+  </g>
+  <g>
+    <rect x="576" y="640" width="132" height="66" rx="16" fill="#22c55e"/>
+    <polygon points="660,704 692,704 668,728" fill="#22c55e"/>
+    <path d="M610 674 l16 16 30 -34" stroke="#ffffff" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Bureau -->
+  <rect x="70" y="742" width="660" height="30" rx="15" fill="#334155"/>
+  <rect x="112" y="772" width="22" height="150" fill="#1e293b"/>
+  <rect x="666" y="772" width="22" height="150" fill="#1e293b"/>
+
+  <!-- Portable -->
+  <g>
+    <rect x="252" y="628" width="230" height="130" rx="12" fill="#0f172a" stroke="#475569" stroke-width="5"/>
+    <rect x="268" y="644" width="198" height="98" rx="7" fill="url(#ecran)"/>
+    <circle cx="367" cy="693" r="26" fill="#ffffff" opacity="0.95"/>
+    <polygon points="359,679 385,693 359,707" fill="#1d4ed8"/>
+    <rect x="232" y="756" width="270" height="16" rx="8" fill="#475569"/>
+  </g>
+
+  <!-- Pile de livres -->
+  <g>
+    <rect x="536" y="712" width="150" height="20" rx="6" fill="#f59e0b"/>
+    <rect x="544" y="690" width="140" height="22" rx="6" fill="#ef4444"/>
+    <rect x="538" y="668" width="148" height="22" rx="6" fill="#22c55e"/>
+    <rect x="548" y="648" width="130" height="20" rx="6" fill="#a78bfa"/>
+  </g>
+
+  <!-- Tasse -->
+  <g>
+    <rect x="150" y="712" width="56" height="42" rx="10" fill="#e2e8f0"/>
+    <path d="M206 722 q26 4 26 18 t-26 18" stroke="#e2e8f0" stroke-width="9" fill="none"/>
+    <path d="M164 700 q6 -12 0 -22 M184 700 q6 -12 0 -22" stroke="#94a3b8" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- Plante -->
+  <g>
+    <path d="M700 742 q-6 -60 -34 -84 q34 6 44 44 q6 -46 40 -62 q-8 52 -34 76" fill="#22c55e"/>
+    <path d="M676 742 h56 l-8 44 h-40 z" fill="#f59e0b"/>
+  </g>
+
+  <!-- Sol -->
+  <rect x="0" y="898" width="800" height="102" fill="url(#sol)"/>
+  <rect x="0" y="894" width="800" height="8" fill="#3b82f6" opacity="0.5"/>
+</svg>

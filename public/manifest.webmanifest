@@ -1,0 +1,20 @@
+{
+  "name": "Aprovic Educ",
+  "short_name": "Aprovic Educ",
+  "description": "Plateforme d'enseignement du francais - classe inversee",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f6fb",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
