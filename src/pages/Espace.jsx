@@ -29,17 +29,18 @@ function CarteClasse() {
     );
   }
 
+  // Sous-titre : affiche niveau/option seulement s'ils ne sont pas deja dans le nom.
+  const sousTitre = [info.classe.niveau, info.classe.option_classe]
+    .filter((p) => p && !String(info.classe.nom).includes(p))
+    .join(' · ');
+
   return (
     <article className="module module-classe">
       <div className="module-tete">
-        <h2>{info.classe.nom}</h2>
+        <h2>🎓 {info.classe.nom}</h2>
         <span className="badge-code">{info.classe.code}</span>
       </div>
-      {(info.classe.niveau || info.classe.option_classe) && (
-        <p className="niveau">
-          {[info.classe.niveau, info.classe.option_classe].filter(Boolean).join(' · ')}
-        </p>
-      )}
+      {sousTitre && <p className="niveau">{sousTitre}</p>}
       <ul className="details-classe">
         <li>
           <span>Enseignant</span> {info.enseignant || '—'}
@@ -116,8 +117,7 @@ export default function Espace() {
           <section className="grille-modules">
             <article className="module module-lien">
               <div className="module-tete">
-                <h2>Mes classes</h2>
-                <span className="pastille pastille-ok">Disponible</span>
+                <h2>📚 Mes classes</h2>
               </div>
               <p>Creez des classes et ajoutez des eleves (avec matricules).</p>
               <Link to="/classes" className="btn-principal btn-petit lien-bloc">
@@ -126,8 +126,7 @@ export default function Espace() {
             </article>
             <article className="module module-lien">
               <div className="module-tete">
-                <h2>Mes contenus</h2>
-                <span className="pastille pastille-ok">Disponible</span>
+                <h2>📄 Mes contenus</h2>
               </div>
               <p>Textes, videos, fichiers et PDF pour vos classes.</p>
               <Link to="/contenus" className="btn-principal btn-petit lien-bloc">
@@ -136,8 +135,7 @@ export default function Espace() {
             </article>
             <article className="module module-lien">
               <div className="module-tete">
-                <h2>Statistiques</h2>
-                <span className="pastille pastille-ok">Disponible</span>
+                <h2>📊 Statistiques</h2>
               </div>
               <p>Connexions et temps passe par chaque eleve.</p>
               <Link to="/stats" className="btn-principal btn-petit lien-bloc">
@@ -146,8 +144,7 @@ export default function Espace() {
             </article>
             <article className="module module-lien">
               <div className="module-tete">
-                <h2>Mes devoirs</h2>
-                <span className="pastille pastille-ok">Disponible</span>
+                <h2>📝 Mes devoirs</h2>
               </div>
               <p>QCM auto-corriges et devoirs ouverts a corriger.</p>
               <Link to="/devoirs" className="btn-principal btn-petit lien-bloc">
@@ -162,8 +159,7 @@ export default function Espace() {
             <CarteClasse />
             <article className="module module-lien">
               <div className="module-tete">
-                <h2>Mes contenus</h2>
-                <span className="pastille pastille-ok">Disponible</span>
+                <h2>📄 Mes contenus</h2>
               </div>
               <p>Retrouvez ici les texts, videos et documents de votre classe.</p>
               <Link to="/mes-contenus" className="btn-principal btn-petit lien-bloc">
@@ -172,8 +168,7 @@ export default function Espace() {
             </article>
             <article className="module module-lien">
               <div className="module-tete">
-                <h2>Mes devoirs</h2>
-                <span className="pastille pastille-ok">Disponible</span>
+                <h2>📝 Mes devoirs</h2>
               </div>
               <p>QCM et devoirs ouverts a rendre avant la date de fin.</p>
               <Link to="/mes-devoirs" className="btn-principal btn-petit lien-bloc">

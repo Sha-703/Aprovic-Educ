@@ -24,9 +24,16 @@ const OPTIONS_CLASSE = [
   'Autre',
 ];
 
-/** "1er · Scientifique" — niveau et option d'une classe. */
+/** "1ere · Scientifique" — ce qui manque au nom (jamais ce qui est deja dedans). */
 function detailClasse(classe) {
-  return [classe.niveau, classe.option_classe].filter(Boolean).join(' · ');
+  return [classe.niveau, classe.option_classe]
+    .filter((p) => p && !String(classe.nom).includes(p))
+    .join(' · ');
+}
+
+/** Nom automatique : niveau + option + section (ex. "1ere Scientifique A"). */
+function composerNom(niveau, option, section) {
+  return [niveau, option, section].filter(Boolean).join(' ');
 }
 
 /** Espace enseignant : creer des classes et des eleves (avec matricules). */
@@ -35,14 +42,20 @@ export default function Classes() {
   const [classes, setClasses] = useState([]);
   const [erreur, setErreur] = useState('');
 
-  // Formulaire de creation de classe
-  const [nom, setNom] = useState('');
+  // Formulaire de creation de classe — le nom est compose automatiquement
   const [niveau, setNiveau] = useState('');
   const [niveauAutre, setNiveauAutre] = useState('');
   const [optionChoix, setOptionChoix] = useState(AUCUNE);
   const [optionAutre, setOptionAutre] = useState('');
+  const [section, setSection] = useState('');
   const [code, setCode] = useState('');
   const [enCours, setEnCours] = useState(false);
+
+  // Valeurs derivees (utilisees pour l'apercu en direct et pour l'envoi)
+  const niveauFinal = niveau === 'Autre' ? niveauAutre.trim() : niveau;
+  const optionFinale =
+    optionChoix === AUCUNE ? '' : optionChoix === 'Autre' ? optionAutre.trim() : optionChoix;
+  const nomClasse = composerNom(niveauFinal, optionFinale, section.trim().toUpperCase());
 
   // Classe ouverte (detail)
   const [active, setActive] = useState(null);
@@ -79,25 +92,26 @@ export default function Classes() {
   async function creerClasse(e) {
     e.preventDefault();
     setErreur('');
+    if (nomClasse.length < 2) {
+      setErreur('Choisissez un niveau pour composer le nom de la classe.');
+      return;
+    }
     setEnCours(true);
     try {
-      const niveauFinal = niveau === 'Autre' ? niveauAutre.trim() : niveau;
-      const optionFinale =
-        optionChoix === AUCUNE ? '' : optionChoix === 'Autre' ? optionAutre.trim() : optionChoix;
       await api('/classes', {
         method: 'POST',
         corps: {
-          nom,
+          nom: nomClasse,
           niveau: niveauFinal,
           option_classe: optionFinale,
           code: code || undefined,
         },
       });
-      setNom('');
       setNiveau('');
       setNiveauAutre('');
       setOptionChoix(AUCUNE);
       setOptionAutre('');
+      setSection('');
       setCode('');
       await chargerClasses();
     } catch (err) {
@@ -220,18 +234,14 @@ export default function Classes() {
         {!active && (
           <>
             <section className="carte-bloc">
-              <h2>Nouvelle classe</h2>
+              <div className="bloc-tete">
+                <h2>Nouvelle classe</h2>
+                <p className="texte-doux">
+                  Le nom est compose automatiquement a partir du niveau, de l'option et de la
+                  section.
+                </p>
+              </div>
               <form onSubmit={creerClasse} className="formulaire-ligne">
-                <label>
-                  Nom
-                  <input
-                    type="text"
-                    value={nom}
-                    onChange={(e) => setNom(e.target.value)}
-                    placeholder="Ex. 1ere A"
-                    required
-                  />
-                </label>
                 <label>
                   Niveau
                   <select value={niveau} onChange={(e) => setNiveau(e.target.value)} required>
@@ -242,6 +252,26 @@ export default function Classes() {
                       </option>
                     ))}
                   </select>
+                </label>
+                <label>
+                  Option
+                  <select value={optionChoix} onChange={(e) => setOptionChoix(e.target.value)}>
+                    {OPTIONS_CLASSE.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Section <span className="facultatif">(optionnel)</span>
+                  <input
+                    type="text"
+                    value={section}
+                    onChange={(e) => setSection(e.target.value.toUpperCase())}
+                    placeholder="Ex. A"
+                    maxLength={12}
+                  />
                 </label>
                 {niveau === 'Autre' && (
                   <label>
@@ -255,16 +285,6 @@ export default function Classes() {
                     />
                   </label>
                 )}
-                <label>
-                  Option
-                  <select value={optionChoix} onChange={(e) => setOptionChoix(e.target.value)}>
-                    {OPTIONS_CLASSE.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 {optionChoix === 'Autre' && (
                   <label>
                     Option (libelle)
@@ -277,6 +297,14 @@ export default function Classes() {
                     />
                   </label>
                 )}
+                <div className="apercu-nom">
+                  <span>Nom de la classe</span>
+                  {nomClasse ? (
+                    <strong>{nomClasse}</strong>
+                  ) : (
+                    <em>Choisissez un niveau pour composer le nom…</em>
+                  )}
+                </div>
                 <label>
                   Code (optionnel)
                   <input
@@ -379,6 +407,9 @@ export default function Classes() {
                 <ul className="liste-eleves">
                   {eleves.map((eleve) => (
                     <li key={eleve.id}>
+                      <span className="pastille-initiale" aria-hidden="true">
+                        {eleve.nom.trim().charAt(0).toUpperCase()}
+                      </span>
                       <span className="nom-eleve">{eleve.nom}</span>
                       <button
                         type="button"
