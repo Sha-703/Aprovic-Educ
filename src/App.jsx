@@ -8,6 +8,7 @@ import Contenus from './pages/Contenus.jsx';
 import MesContenus from './pages/MesContenus.jsx';
 import Devoirs from './pages/Devoirs.jsx';
 import DevoirsEleve from './pages/DevoirsEleve.jsx';
+import Recherche from './pages/Recherche.jsx';
 import Stats from './pages/Stats.jsx';
 import Reglages from './pages/Reglages.jsx';
 import { getToken } from './api.js';
@@ -80,6 +81,14 @@ export default function App() {
         element={
           <Protegee>
             <Stats />
+          </Protegee>
+        }
+      />
+      <Route
+        path="/recherche"
+        element={
+          <Protegee>
+            <Recherche />
           </Protegee>
         }
       />

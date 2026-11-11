@@ -447,7 +447,7 @@ export default function Devoirs() {
             </div>
           </section>
         ) : (
-          <>
+          <div className="vue-devoirs">
             {/* ============ CREATION ============ */}
             {classes.length === 0 ? (
               <section className="carte-bloc">
@@ -455,7 +455,13 @@ export default function Devoirs() {
               </section>
             ) : (
               <section className="carte-bloc">
-                <h2>Nouveau devoir</h2>
+                <div className="bloc-tete">
+                  <h2>Nouveau devoir</h2>
+                  <p className="texte-doux">
+                    Date de fin obligatoire : apres l'echeance, le devoir est archive et marque
+                    « manque » pour les eleves non rendus.
+                  </p>
+                </div>
                 <form onSubmit={creerDevoir} className="formulaire-contenu">
                   <div className="ligne-2">
                     <label>
@@ -587,6 +593,7 @@ export default function Devoirs() {
               </section>
             )}
 
+            <div className="colonne-listes">
             {/* ============ LISTE : ACTIFS ============ */}
             <section className="carte-bloc">
               <h2>Devoirs en cours ({actifs.length})</h2>
@@ -704,7 +711,8 @@ export default function Devoirs() {
                 </ul>
               )}
             </section>
-          </>
+            </div>
+          </div>
         )}
       </main>
     </div>

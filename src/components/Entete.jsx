@@ -59,8 +59,9 @@ function BarreRecherche({ role }) {
   function ouvrir(type, item) {
     setOuvert(false);
     setQ('');
-    if (type === 'classe') navigate(`/classes?classe=${item.code}`);
-    else if (type === 'eleve') navigate(`/stats?eleve=${item.matricule}`);
+    // Les classes et les eleves ouvrent leur fiche complete (/recherche)
+    if (type === 'classe') navigate(`/recherche?classe=${item.id}`);
+    else if (type === 'eleve') navigate(`/recherche?eleve=${item.matricule}`);
     else if (type === 'devoir') {
       navigate(
         role === 'enseignant'

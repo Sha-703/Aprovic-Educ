@@ -845,9 +845,24 @@ button {
   align-items: start;
 }
 
+/* Vue devoirs : formulaire de creation a gauche, listes a droite */
+.vue-devoirs {
+  display: grid;
+  grid-template-columns: minmax(340px, 1.1fr) minmax(0, 1.5fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.colonne-listes {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 @media (max-width: 900px) {
   .vue-classe,
-  .vue-creation {
+  .vue-creation,
+  .vue-devoirs {
     grid-template-columns: 1fr;
   }
 }
@@ -1402,6 +1417,24 @@ button {
 
 .stat-carte strong.en-ligne {
   color: var(--succes);
+}
+
+/* Valeur texte (nom de classe, date…) : pas de grand chiffre */
+.stat-carte strong.texte {
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+
+/* Matricule affiche dans le titre des fiches */
+.matricule-fiche {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-weight: 700;
+  color: var(--bleu-fonce);
+  background: var(--bleu-clair);
+  padding: 2px 8px;
+  border-radius: 7px;
+  letter-spacing: 0.8px;
+  font-size: 0.88rem;
 }
 
 .tableau-scroll {

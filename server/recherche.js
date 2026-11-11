@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from './db.js';
-import { requireAuth } from './security.js';
+import { requireAuth, requireRole } from './security.js';
 import { capterErreurs } from './erreurs.js';
 
 const router = capterErreurs(Router());
@@ -95,6 +95,121 @@ router.get('/', requireAuth, async (req, res) => {
       .all(moi.classe_id, maintenant, m),
   ]);
   return res.json({ ...vide, devoirs, contenus });
+});
+
+/**
+ * GET /api/recherche/eleve/:matricule — fiche complete d'un eleve :
+ * sa classe, tous ses devoirs (rendus / a faire / manques + notes) et
+ * ses performances de connexion.
+ */
+router.get('/eleve/:matricule', requireAuth, requireRole('enseignant'), async (req, res) => {
+  const eleve = await db
+    .prepare(
+      `SELECT u.id, u.nom, u.matricule,
+              c.id AS classe_id, c.nom AS classe_nom, c.niveau, c.option_classe, c.code
+       FROM users u
+       JOIN classes c ON c.id = u.classe_id
+       WHERE u.role = 'eleve' AND u.matricule = ? AND c.enseignant_id = ?`
+    )
+    .get(String(req.params.matricule), req.auth.id);
+  if (!eleve) return res.status(404).json({ erreur: 'Eleve introuvable.' });
+
+  // Tous les devoirs de sa classe + son rendu éventuel (LEFT JOIN)
+  const lignes = await db
+    .prepare(
+      `SELECT d.id, d.titre, d.type, d.date_fin, d.note_max,
+              r.note, r.commentaire, r.statut AS rendu_statut, r.soumis_le
+       FROM devoirs d
+       LEFT JOIN rendus r ON r.devoir_id = d.id AND r.eleve_id = ?
+       WHERE d.classe_id = ?
+       ORDER BY d.date_fin DESC`
+    )
+    .all(eleve.id, eleve.classe_id);
+
+  const maintenant = Date.now();
+  const devoirs = lignes.map((d) => ({
+    ...d,
+    statut: d.rendu_statut
+      ? d.rendu_statut // rendu | corrige
+      : new Date(d.date_fin).getTime() <= maintenant
+        ? 'manque' // pas rendu apres l'echeance
+        : 'a_faire',
+  }));
+
+  // Performances : memes regles que /presence/eleves
+  const presences = await db
+    .prepare('SELECT debut, derniere_activite FROM presences WHERE user_id = ?')
+    .all(eleve.id);
+  let secondes = 0;
+  let derniere = null;
+  for (const p of presences) {
+    secondes += Math.max(0, (new Date(p.derniere_activite) - new Date(p.debut)) / 1000);
+    if (!derniere || p.derniere_activite > derniere) derniere = p.derniere_activite;
+  }
+
+  res.json({
+    eleve: { id: eleve.id, nom: eleve.nom, matricule: eleve.matricule },
+    classe: {
+      id: eleve.classe_id,
+      nom: eleve.classe_nom,
+      niveau: eleve.niveau,
+      option_classe: eleve.option_classe,
+      code: eleve.code,
+    },
+    devoirs,
+    performances: {
+      nb_connexions: presences.length,
+      secondes: Math.round(secondes),
+      derniere_activite: derniere,
+      en_ligne: derniere
+        ? (Date.now() - new Date(derniere).getTime()) / 1000 < 120
+        : false,
+    },
+  });
+});
+
+/**
+ * GET /api/recherche/classe/:id — fiche d'une classe : niveau, option,
+ * effectif (liste des eleves) et compteurs de devoirs/contenus en cours.
+ */
+router.get('/classe/:id', requireAuth, requireRole('enseignant'), async (req, res) => {
+  const classe = await db
+    .prepare(
+      `SELECT id, nom, code, niveau, option_classe
+       FROM classes WHERE id = ? AND enseignant_id = ?`
+    )
+    .get(Number(req.params.id), req.auth.id);
+  if (!classe) return res.status(404).json({ erreur: 'Classe introuvable.' });
+
+  const eleves = await db
+    .prepare(
+      `SELECT id, nom, matricule FROM users
+       WHERE classe_id = ? AND role = 'eleve' ORDER BY nom`
+    )
+    .all(classe.id);
+
+  const maintenant = new Date().toISOString();
+  const [devoirs, contenus] = await Promise.all([
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM devoirs
+         WHERE classe_id = ? AND date_fin > ?`
+      )
+      .get(classe.id, maintenant),
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM contenus
+         WHERE classe_id = ? AND (date_fin IS NULL OR date_fin > ?)`
+      )
+      .get(classe.id, maintenant),
+  ]);
+
+  res.json({
+    classe,
+    eleves,
+    nb_devoirs: Number(devoirs?.n || 0),
+    nb_contenus: Number(contenus?.n || 0),
+  });
 });
 
 export default router;

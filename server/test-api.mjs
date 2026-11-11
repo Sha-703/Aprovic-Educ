@@ -203,6 +203,41 @@ verifier(
   sR5 === 200 && Array.isArray(dR5.devoirs) && Array.isArray(dR5.contenus)
 );
 
+// 20. Fiche eleve : classe, devoirs (statuts + notes) et performances
+const { statut: sFicheEl, data: dFicheEl } = await appel(`/recherche/eleve/${matriculeRech}`, {
+  token,
+});
+verifier(
+  'Fiche eleve : classe + devoirs + performances',
+  sFicheEl === 200 &&
+    dFicheEl.classe?.code === codeRech &&
+    Array.isArray(dFicheEl.devoirs) &&
+    typeof dFicheEl.performances?.nb_connexions === 'number',
+  `${dFicheEl.devoirs?.length || 0} devoir(s)`
+);
+
+// 21. Fiche classe : niveau, option et liste des eleves
+const { statut: sFicheCl, data: dFicheCl } = await appel(
+  `/recherche/classe/${dClRech.classe.id}`,
+  { token }
+);
+verifier(
+  'Fiche classe : niveau, option et eleves',
+  sFicheCl === 200 &&
+    dFicheCl.classe?.niveau === '1ere' &&
+    dFicheCl.eleves?.some((e) => e.matricule === matriculeRech),
+  `${dFicheCl.eleves?.length || 0} eleve(s)`
+);
+
+// 22. Fiche inconnue -> 404 ; interdite aux eleves -> 403
+const { statut: sFiche404 } = await appel('/recherche/eleve/XXXXXX-000000', { token });
+verifier('Fiche eleve inconnu refusee (404)', sFiche404 === 404);
+
+const { statut: sFiche403 } = await appel(`/recherche/classe/${dClRech.classe.id}`, {
+  token: dConnEl.token,
+});
+verifier('Un eleve ne peut pas ouvrir une fiche (403)', sFiche403 === 403);
+
 // Nettoyage : la classe de test ne reste pas dans la base
 const { statut: sSupRech } = await appel(`/classes/${dClRech.classe.id}`, {
   method: 'DELETE',
@@ -210,7 +245,7 @@ const { statut: sSupRech } = await appel(`/classes/${dClRech.classe.id}`, {
 });
 verifier('Classe de test supprimee apres la recherche', sSupRech === 200);
 
-// 20. Page d'etat /health — reponse JSON pour Render et les moniteurs
+// 23. Page d'etat /health — reponse JSON pour Render et les moniteurs
 const resHealth = await fetch('http://localhost:3001/health');
 const dHealth = await resHealth.json();
 verifier(
@@ -219,7 +254,7 @@ verifier(
   `${dHealth.base} · ${dHealth.stockage}`
 );
 
-// 21. Page d'etat /health — page HTML dans le navigateur
+// 24. Page d'etat /health — page HTML dans le navigateur
 const resHealthHtml = await fetch('http://localhost:3001/health', {
   headers: { Accept: 'text/html,application/xhtml+xml' },
 });

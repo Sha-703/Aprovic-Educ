@@ -15,7 +15,7 @@ Memes principes que Google Classroom, mais pensee pour le francais.
 - **Devoirs ouverts** : reponse redigee, **correction manuelle** par l'enseignant (note + commentaire)
 - **Echeance** : apres la date de fin, contenu/devoir **disparait pour l'eleve**, est **archive pour l'enseignant** qui peut le **republier** avec une nouvelle date ; rendu non soumis = statut **« manque »**
 - **Statistiques** : connexions, sessions et temps passe par eleve (heartbeat toutes les 30 s)
-- **Recherche globale** : barre dans l'en-tete pour trouver une classe, un eleve, un devoir ou un contenu — chaque resultat ouvre la bonne page (statistiques de l'eleve, suivi du devoir…)
+- **Recherche globale** : barre dans l'en-tete pour trouver une classe, un eleve, un devoir ou un contenu — chaque classe/eleve ouvre sa **fiche complete** (`/recherche`) : pour un eleve sa classe, tous ses devoirs (rendus / a faire / manques + notes) et ses performances ; pour une classe son niveau, son option, son effectif et ses comptes
 - **Page `/health`** : etat du service en temps reel (JSON pour Render, page HTML dans le navigateur) avec test reel de la base et du stockage
 - Page **Reglages** : profil (nom, e-mail, ecole) + mot de passe
 - PWA : manifest + service worker (installable, mode hors-ligne)
@@ -123,5 +123,5 @@ node server/test-phase3.mjs # Phase 3
 node server/test-phase4.mjs # Phases 4-5 (devoirs + echeances)
 ```
 
-106 tests au total. Les mêmes suites passent en mode distant : lance le serveur avec
+110 tests au total. Les mêmes suites passent en mode distant : lance le serveur avec
 `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` dans l'environnement avant de lancer les tests.
