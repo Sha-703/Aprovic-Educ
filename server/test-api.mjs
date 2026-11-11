@@ -132,5 +132,83 @@ const { statut: sConnNouveau } = await appel('/auth/connexion', {
 });
 verifier('Connexion avec le nouveau mot de passe', sConnNouveau === 200);
 
+// 13. Recherche globale — sans jeton
+const { statut: sRech401 } = await appel('/recherche?q=ab');
+verifier('Recherche sans jeton refusee (401)', sRech401 === 401);
+
+// 14. Recherche globale — term trop court
+const { statut: sRechCourt } = await appel('/recherche?q=a', { token });
+verifier('Recherche avec 1 seul caractere refusee (400)', sRechCourt === 400);
+
+// 15. Une classe et un eleve pour chercher dessus
+const { statut: sClRech, data: dClRech } = await appel('/classes', {
+  method: 'POST',
+  corps: { nom: 'Recherche Test', niveau: '1ere', option_classe: 'Scientifique' },
+  token,
+});
+const codeRech = dClRech.classe?.code;
+verifier('Classe de test creee pour la recherche', sClRech === 201 && !!codeRech, codeRech);
+
+const { statut: sElRech, data: dElRech } = await appel(`/classes/${dClRech.classe.id}/eleves`, {
+  method: 'POST',
+  corps: { nom: 'Zokou Awa' },
+  token,
+});
+const matriculeRech = dElRech.eleves?.[0]?.matricule;
+verifier('Eleve de test cree pour la recherche', sElRech === 201 && !!matriculeRech, matriculeRech);
+
+// 16. Trouver la classe par son nom, puis par son code
+const { statut: sR1, data: dR1 } = await appel('/recherche?q=Recherche Test', { token });
+verifier(
+  'Recherche d une classe par son nom',
+  sR1 === 200 && dR1.classes?.some((c) => c.code === codeRech),
+  `${dR1.classes?.length || 0} classe(s)`
+);
+
+const { statut: sR2, data: dR2 } = await appel(`/recherche?q=${codeRech}`, { token });
+verifier(
+  'Recherche d une classe par son code',
+  sR2 === 200 && dR2.classes?.some((c) => c.code === codeRech)
+);
+
+// 17. Trouver l eleve par son nom, avec son matricule
+const { statut: sR3, data: dR3 } = await appel('/recherche?q=Zokou', { token });
+verifier(
+  'Recherche d un eleve par son nom',
+  sR3 === 200 && dR3.eleves?.some((e) => e.matricule === matriculeRech),
+  `${dR3.eleves?.length || 0} eleve(s)`
+);
+
+// 18. Aucun resultat : toutes les listes vides
+const { statut: sR4, data: dR4 } = await appel('/recherche?q=zzzzqqq', { token });
+verifier(
+  'Recherche sans resultat renvoie des listes vides',
+  sR4 === 200 &&
+    dR4.classes.length === 0 &&
+    dR4.eleves.length === 0 &&
+    dR4.devoirs.length === 0 &&
+    dR4.contenus.length === 0
+);
+
+// 19. L eleve connecte peut rechercher dans sa classe
+const { data: dConnEl } = await appel('/auth/connexion', {
+  method: 'POST',
+  corps: { role: 'eleve', matricule: matriculeRech },
+});
+const { statut: sR5, data: dR5 } = await appel('/recherche?q=Recherche', {
+  token: dConnEl.token,
+});
+verifier(
+  'Un eleve peut lancer une recherche (200)',
+  sR5 === 200 && Array.isArray(dR5.devoirs) && Array.isArray(dR5.contenus)
+);
+
+// Nettoyage : la classe de test ne reste pas dans la base
+const { statut: sSupRech } = await appel(`/classes/${dClRech.classe.id}`, {
+  method: 'DELETE',
+  token,
+});
+verifier('Classe de test supprimee apres la recherche', sSupRech === 200);
+
 console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
 process.exit(echecs === 0 ? 0 : 1);

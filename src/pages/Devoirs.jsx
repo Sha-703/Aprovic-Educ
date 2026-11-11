@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setToken } from '../api.js';
 import Entete from '../components/Entete.jsx';
 import { formaterDate } from '../utils.js';
@@ -45,6 +45,7 @@ export default function Devoirs() {
   const [dateRepub, setDateRepub] = useState('');
 
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function deconnecter() {
     setToken(null);
@@ -52,9 +53,13 @@ export default function Devoirs() {
   }
 
   async function chargerDevoirs() {
-    if (!classeId) return setDevoirs([]);
+    if (!classeId) {
+      setDevoirs([]);
+      return null;
+    }
     const d = await api(`/classes/${classeId}/devoirs`);
     setDevoirs(d.devoirs);
+    return d.devoirs;
   }
 
   useEffect(() => {
@@ -67,14 +72,27 @@ export default function Devoirs() {
         setUtilisateur(d.utilisateur);
         const c = await api('/classes');
         setClasses(c.classes);
-        if (c.classes.length > 0) setClasseId(String(c.classes[0].id));
+        // Classe demandee par la barre de recherche (?classe=ID), sinon la premiere
+        const classeDemandee = searchParams.get('classe');
+        const premiere =
+          (classeDemandee && c.classes.find((x) => String(x.id) === classeDemandee)) ||
+          c.classes[0];
+        if (premiere) setClasseId(String(premiere.id));
       })
       .catch(deconnecter);
   }, []);
 
   useEffect(() => {
-    chargerDevoirs().catch(() => {});
-    setActif(null);
+    const idCible = searchParams.get('devoir');
+    chargerDevoirs()
+      .then((liste) => {
+        setActif(null);
+        if (!idCible || !liste) return;
+        const cible = liste.find((d) => String(d.id) === idCible);
+        setSearchParams({}, { replace: true }); // URL nettoyee
+        if (cible) ouvrirSuivi(cible).catch(() => {});
+      })
+      .catch(() => {});
   }, [classeId]);
 
   /* ---------- Editeur de questions ---------- */

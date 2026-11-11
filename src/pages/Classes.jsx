@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setToken } from '../api.js';
 import Entete from '../components/Entete.jsx';
 import { copier } from '../utils.js';
@@ -67,6 +67,7 @@ export default function Classes() {
   const [message, setMessage] = useState('');
 
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function deconnecter() {
     setToken(null);
@@ -76,6 +77,7 @@ export default function Classes() {
   async function chargerClasses() {
     const donnees = await api('/classes');
     setClasses(donnees.classes);
+    return donnees.classes;
   }
 
   useEffect(() => {
@@ -86,7 +88,14 @@ export default function Classes() {
           return;
         }
         setUtilisateur(d.utilisateur);
-        await chargerClasses();
+        const liste = await chargerClasses();
+        // Ouverture ciblee depuis la barre de recherche (?classe=CODE)
+        const codeCible = searchParams.get('classe');
+        if (codeCible) {
+          const cible = liste.find((c) => c.code === codeCible);
+          setSearchParams({}, { replace: true });
+          if (cible) await ouvrirClasse(cible);
+        }
       })
       .catch(deconnecter);
   }, []);
@@ -232,7 +241,7 @@ export default function Classes() {
         {message && <p className="succes" role="status">{message}</p>}
 
         {!active && (
-          <>
+          <div className="vue-creation">
             <section className="carte-bloc">
               <div className="bloc-tete">
                 <h2>Nouvelle classe</h2>
@@ -356,7 +365,7 @@ export default function Classes() {
                 </article>
               ))}
             </section>
-          </>
+          </div>
         )}
 
         {active && (

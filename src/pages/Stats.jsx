@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setToken } from '../api.js';
 import Entete from '../components/Entete.jsx';
 import { formaterDate, formaterDuree } from '../utils.js';
@@ -12,6 +12,9 @@ export default function Stats() {
   const [classes, setClasses] = useState([]);
   const [erreur, setErreur] = useState('');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Eleve cible depuis la barre de recherche (?eleve=MATRICULE)
+  const matriculeCible = searchParams.get('eleve') || '';
 
   function deconnecter() {
     setToken(null);
@@ -48,7 +51,10 @@ export default function Stats() {
     return () => clearInterval(t);
   }, []);
 
-  const filtres = eleves.filter((e) => classeId === 'toutes' || String(e.classe.id) === classeId);
+  let filtres = eleves.filter((e) => classeId === 'toutes' || String(e.classe.id) === classeId);
+  // Ciblee par la recherche : on affiche cet eleve seul, quelle que soit la classe
+  const eleveCible = matriculeCible ? eleves.find((e) => e.matricule === matriculeCible) : null;
+  if (eleveCible) filtres = [eleveCible];
   const totalSecondes = filtres.reduce((somme, e) => somme + e.secondes, 0);
   const enLigne = filtres.filter((e) => e.en_ligne).length;
 
@@ -73,6 +79,16 @@ export default function Stats() {
             </p>
           </div>
           <div className="boutons-titre">
+            {eleveCible && (
+              <button
+                type="button"
+                className="chip-cible"
+                onClick={() => setSearchParams({}, { replace: true })}
+                title="Retirer ce filtre"
+              >
+                🎓 {eleveCible.nom} ✕
+              </button>
+            )}
             <label className="select-classe">
               Classe
               <select value={classeId} onChange={(e) => setClasseId(e.target.value)}>

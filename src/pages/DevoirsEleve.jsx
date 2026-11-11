@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setToken } from '../api.js';
 import Entete from '../components/Entete.jsx';
 import { formaterDate } from '../utils.js';
@@ -25,6 +25,7 @@ export default function DevoirsEleve() {
   const [resultat, setResultat] = useState(null);
 
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function deconnecter() {
     setToken(null);
@@ -34,13 +35,25 @@ export default function DevoirsEleve() {
   async function charger() {
     const d = await api('/eleve/devoirs');
     setDevoirs(d.devoirs);
+    return d.devoirs;
   }
 
   useEffect(() => {
     api('/auth/me')
       .then((d) => setUtilisateur(d.utilisateur))
       .catch(deconnecter);
-    charger().catch((e) => setErreur(e.message));
+    charger()
+      .then((liste) => {
+        // Ouverture ciblee depuis la barre de recherche (?devoir=ID)
+        const idCible = searchParams.get('devoir');
+        if (!idCible || !liste) return;
+        const cible = liste.find((d) => String(d.id) === idCible);
+        setSearchParams({}, { replace: true }); // URL nettoyee
+        if (!cible) return;
+        if (cible.statut === 'a_faire') repondre(cible);
+        else if (cible.type === 'qcm' && cible.statut === 'rendu') voirReponse(cible);
+      })
+      .catch((e) => setErreur(e.message));
   }, []);
 
   function repondre(devoir) {
