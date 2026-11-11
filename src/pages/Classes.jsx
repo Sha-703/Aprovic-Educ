@@ -7,6 +7,8 @@ import { copier } from '../utils.js';
 const AUCUNE = '— Aucune —';
 // Niveaux du secondaire en RDC (education de base + humanités) — « Autre » reste possible
 const NIVEAUX = ['7eme EB', '8eme EB', '1ere', '2eme', '3eme', '4eme', 'Autre'];
+// Classes de base : pas d'option (le champ Option est desactive pour elles)
+const SANS_OPTION = ['7eme EB', '8eme EB'];
 // Options courantes de l'enseignement secondaire en RDC (Kongo Central comprises)
 const OPTIONS_CLASSE = [
   AUCUNE,
@@ -48,10 +50,10 @@ export default function Classes() {
   const [optionChoix, setOptionChoix] = useState(AUCUNE);
   const [optionAutre, setOptionAutre] = useState('');
   const [section, setSection] = useState('');
-  const [code, setCode] = useState('');
   const [enCours, setEnCours] = useState(false);
 
   // Valeurs derivees (utilisees pour l'apercu en direct et pour l'envoi)
+  const sansOption = SANS_OPTION.includes(niveau);
   const niveauFinal = niveau === 'Autre' ? niveauAutre.trim() : niveau;
   const optionFinale =
     optionChoix === AUCUNE ? '' : optionChoix === 'Autre' ? optionAutre.trim() : optionChoix;
@@ -104,7 +106,6 @@ export default function Classes() {
           nom: nomClasse,
           niveau: niveauFinal,
           option_classe: optionFinale,
-          code: code || undefined,
         },
       });
       setNiveau('');
@@ -112,7 +113,6 @@ export default function Classes() {
       setOptionChoix(AUCUNE);
       setOptionAutre('');
       setSection('');
-      setCode('');
       await chargerClasses();
     } catch (err) {
       setErreur(err.message);
@@ -244,7 +244,19 @@ export default function Classes() {
               <form onSubmit={creerClasse} className="formulaire-ligne">
                 <label>
                   Niveau
-                  <select value={niveau} onChange={(e) => setNiveau(e.target.value)} required>
+                  <select
+                    value={niveau}
+                    onChange={(e) => {
+                      const n = e.target.value;
+                      setNiveau(n);
+                      // Classe de base : aucune option possible, on remet a zero
+                      if (SANS_OPTION.includes(n)) {
+                        setOptionChoix(AUCUNE);
+                        setOptionAutre('');
+                      }
+                    }}
+                    required
+                  >
                     <option value="">— Choisir —</option>
                     {NIVEAUX.map((n) => (
                       <option key={n} value={n}>
@@ -255,10 +267,14 @@ export default function Classes() {
                 </label>
                 <label>
                   Option
-                  <select value={optionChoix} onChange={(e) => setOptionChoix(e.target.value)}>
+                  <select
+                    value={optionChoix}
+                    onChange={(e) => setOptionChoix(e.target.value)}
+                    disabled={sansOption}
+                  >
                     {OPTIONS_CLASSE.map((o) => (
                       <option key={o} value={o}>
-                        {o}
+                        {sansOption && o === AUCUNE ? '— Sans option (classe de base) —' : o}
                       </option>
                     ))}
                   </select>
@@ -305,16 +321,6 @@ export default function Classes() {
                     <em>Choisissez un niveau pour composer le nom…</em>
                   )}
                 </div>
-                <label>
-                  Code (optionnel)
-                  <input
-                    type="text"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="Genere automatiquement"
-                    maxLength={6}
-                  />
-                </label>
                 <button type="submit" className="btn-principal" disabled={enCours}>
                   {enCours ? 'Creation…' : 'Creer la classe'}
                 </button>
@@ -354,7 +360,7 @@ export default function Classes() {
         )}
 
         {active && (
-          <>
+          <div className="vue-classe">
             <section className="carte-bloc">
               <h2>Ajouter un eleve</h2>
               <form onSubmit={ajouterEleve} className="formulaire-ligne">
@@ -433,7 +439,7 @@ export default function Classes() {
                 </ul>
               )}
             </section>
-          </>
+          </div>
         )}
       </main>
     </div>

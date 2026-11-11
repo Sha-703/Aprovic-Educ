@@ -836,6 +836,20 @@ button {
   border-color: var(--erreur);
 }
 
+/* Vue detail d'une classe : formulaire d'ajout a gauche, liste des eleves a droite */
+.vue-classe {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .vue-classe {
+    grid-template-columns: 1fr;
+  }
+}
+
 .grille-classes {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -1145,6 +1159,14 @@ button {
   background-position: right 13px center;
   padding-right: 36px;
   cursor: pointer;
+}
+
+/* Select desactive (ex. : option indisponible pour les classes de base) */
+.formulaire-ligne select:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
 }
 
 .boutons-titre {
