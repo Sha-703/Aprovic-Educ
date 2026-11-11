@@ -9,7 +9,7 @@ Memes principes que Google Classroom, mais pensee pour le francais.
 - Compte enseignant : inscription (**nom, e-mail, ecole**) → **matricule genere automatiquement** (unique, aleatoire `ENS-XXXXXX`)
 - Connexion enseignant : matricule + mot de passe — connexion eleve : **matricule seul** (`CODECLASSE-XXXXXX`)
 - **Navbar** de navigation (Accueil, Mes classes, Mes contenus, Devoirs, Statistiques) + menu compte (avatar)
-- **Classes** : niveau (1er, 2eme…), option (Scientifique, Litteraire…) et eleves avec matricules
+- **Classes** : niveaux pre-enregistres du secondaire RDC (**7eme EB, 8eme EB, 1ere → 4eme**) et options pre-enregistrees (**Scientifique, Litteraire, Humanites Pedagogiques, Commerciale et Gestion, Electricite, Electronique…**) avec saisie libre « Autre » — et eleves avec matricules
 - **Contenus** (classe inversee) : texte, video (URL ou televersement), PDF, fichier — avec **date de fin**
 - **Devoirs QCM** : questions a choix multiples, **correction automatique**, note et detail envoyes a l'eleve
 - **Devoirs ouverts** : reponse redigee, **correction manuelle** par l'enseignant (note + commentaire)
@@ -43,12 +43,39 @@ Le repo contient un blueprint `render.yaml` : API + front sur le **meme service*
 
 Notes importantes du plan gratuit :
 
-- **Les données (`data/*.db`) et les fichiers `uploads/` sont éphémères** : à chaque
-  redéploiement, la base repart vide (le secret JWT, lui, est conservé via `JWT_SECRET`).
-  Pour un usage réel avec persistance → plan Starter + disque, ou un petit VPS.
 - **Mise en veille après ~15 min d'inactivité** : le premier appel suivant met ~50 s
   (les tests d'API ne passent que si le service est "réveillé").
 - Chaque push sur `main` redéploie automatiquement.
+
+### Persistance des données (Turso + R2)
+
+Le disque de Render est **éphémère** (vide à chaque redéploiement) : sans configuration,
+les comptes et contenus disparaissent. L'application se connecte donc à une base
+**distante** dès que deux variables d'environnement sont renseignées :
+
+| Variables | Rôle | Service |
+|---|---|---|
+| `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` | Base de donnees (comptes, classes, contenus, devoirs) | [Turso](https://turso.tech) — gratuit |
+| `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Fichiers televerses (videos, PDF) | [Cloudflare R2](https://www.cloudflare.com/developer-platform/products/r2/) — gratuit (10 Go) |
+
+**Installation une fois pour toutes :**
+
+1. Créer une base sur turso.tech (login GitHub) → `turso db create aprovic` (ou via le
+   dashboard) → copier l'**URL** (`libsql://…`) et générer un **auth token**
+2. Créer un bucket sur dash.cloudflare.com → R2 → **Create bucket** → **Manage R2 API
+   Tokens** → token **Object Read & Write** (celui du bucket) → récupérer Access Key ID,
+   Secret Access Key et l'endpoint régional (`https://<ACCOUNT>.r2.cloudflarestorage.com`)
+3. Sur Render → service → **Environment** → coller les valeurs dans les slots déjà
+   prévus par `render.yaml` (Render redémarre tout seul)
+
+**Comportement :**
+
+- Variables **vides** → mode local : fichier `data/*.db` + `uploads/` (données jetables).
+- `TURSO_*` renseignées → **toutes les données persistent** (redeploiements compris).
+- `R2_*` renseignées → les fichiers téléversés partent sur R2 (sinon disque local).
+- Le serveur affiche le mode au démarrage : `base distante (libSQL)` ou `base locale (fichier)`.
+- En dev local (`npm run dev`), aucune variable requise : tout fonctionne en fichier.
+- Le token Turso est un secret : jamais dans le code, uniquement dans Render/env.
 
 ## Structure
 
@@ -56,7 +83,9 @@ Notes importantes du plan gratuit :
 aprovic-educ/
 ├── server/            # API Express + SQLite (node:sqlite)
 │   ├── index.js       # point d'entree serveur
-│   ├── db.js          # base de données (users, classes, contenus, devoirs, questions, rendus, presences)
+│   ├── db.js          # base de données : mode local (node:sqlite) + mode distant (Turso/libSQL)
+│   ├── stockage.js    # fichiers : disque local + Cloudflare R2 (envoi, suppression, URL signee)
+│   ├── erreurs.js     # gestion des erreurs async des routes (Express 4)
 │   ├── auth.js        # inscription / connexion / profil / mot de passe
 │   ├── matricule.js   # generation des matricules uniques
 │   ├── classes.js     # classes & eleves
@@ -80,7 +109,7 @@ aprovic-educ/
 - [x] Phase 3 — contenus (texte, video, fichier, PDF) + stats de connexion (temps passe)
 - [x] Phase 4 — devoirs QCM + correction automatique + date de fin / archives / republiage
 - [x] Phase 5 — devoirs ouverts + correction enseignant + statut "manque"
-- [ ] Phase 6 — finitions PWA et deploiement
+- [x] Phase 6 — deploiement Render + persistance (base Turso, fichiers R2)
 
 ## Tests
 
@@ -91,3 +120,6 @@ node server/test-phase2.mjs # Phase 2
 node server/test-phase3.mjs # Phase 3
 node server/test-phase4.mjs # Phases 4-5 (devoirs + echeances)
 ```
+
+98 tests au total. Les mêmes suites passent en mode distant : lance le serveur avec
+`TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` dans l'environnement avant de lancer les tests.

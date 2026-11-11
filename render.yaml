@@ -16,3 +16,19 @@ services:
       # Secret JWT stable entre les deploiements (genere automatiquement)
       - key: JWT_SECRET
         generateValue: true
+      # --- Persistance : base distante Turso/libSQL (valeurs a remplir dans le dashboard) ---
+      # Tant que vides = mode fichier local (donnees jetables sur le disque Render).
+      # Voir README section « Ne plus perdre les donnees ».
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      # --- Persistance : fichiers televerses sur Cloudflare R2 (valeurs a remplir) ---
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false

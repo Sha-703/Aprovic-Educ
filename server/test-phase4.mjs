@@ -235,11 +235,11 @@ verifier(
 // ==================== Expiration d un devoir ====================
 const { data: dCourt } = await appel(`/classes/${cid}/devoirs`, {
   method: 'POST',
-  corps: { titre: 'Bientot termine', type: 'ouvert', consigne: 'A rendre vite.', date_fin: dateFuture(1200) },
+  corps: { titre: 'Bientot termine', type: 'ouvert', consigne: 'A rendre vite.', date_fin: dateFuture(4000) },
   token: t1,
 });
 const courtId = dCourt.devoir.id;
-await attendre(1600);
+await attendre(4500);
 
 const { data: dApres } = await appel('/eleve/devoirs', { token: tA });
 verifier(
@@ -287,7 +287,7 @@ const { statut: sConOk, data: dConOk } = await appel(`/classes/${cid}/contenus`,
     titre: 'Contenu ephemere',
     type: 'texte',
     corps: 'Ce contenu disparaitra.',
-    date_fin: dateFuture(1000),
+    date_fin: dateFuture(4000),
   },
   token: t1,
 });
@@ -309,7 +309,7 @@ const { statut: sConDuree, data: dConDuree } = await appel(`/classes/${cid}/cont
 const conDure = dConDuree.contenu.id;
 verifier('Creation contenu durable', sConDuree === 201);
 
-await attendre(1300);
+await attendre(4500);
 
 const { data: dMesApres } = await appel('/eleve/mes-contenus', { token: tA });
 verifier(

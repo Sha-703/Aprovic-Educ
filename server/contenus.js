@@ -1,16 +1,14 @@
-import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { db } from './db.js';
 import { requireAuth, requireRole } from './security.js';
 import { classeDemandee } from './classes.js';
+import { routerProtege } from './erreurs.js';
+import { dossierUploads, envoyerVersStockage, supprimerFichier } from './stockage.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const dossierUploads = path.join(__dirname, '..', 'uploads');
-fs.mkdirSync(dossierUploads, { recursive: true });
+export { dossierUploads };
 
 // Fichiers interdits (execution)
 const EXTENSIONS_INTERDITES = [
@@ -50,15 +48,15 @@ function nettoyer(req) {
 }
 
 /* ==================== Enseignant ==================== */
-export const routerContenusEnseignant = Router();
+export const routerContenusEnseignant = routerProtege();
 
 // POST /api/classes/:id/contenus — creer un contenu (JSON ou multipart avec fichier)
 routerContenusEnseignant.post(
   '/classes/:id/contenus',
   ...autorise,
   upload.single('fichier'),
-  (req, res) => {
-    const classe = classeDemandee(req, res);
+  async (req, res) => {
+    const classe = await classeDemandee(req, res);
     if (!classe) return nettoyer(req);
 
     const { titre, type, corps = '', url = '', date_fin } = req.body || {};
@@ -110,6 +108,8 @@ routerContenusEnseignant.post(
     let taille = null;
 
     if (req.file) {
+      // Envoi vers le stockage (R2 en prod ; disque local en dev) avant insertion
+      await envoyerVersStockage(req.file.path, req.file.filename, req.file.mimetype);
       urlFinale = `/uploads/${req.file.filename}`;
       nomFichier = String(req.file.originalname).slice(0, 200);
       taille = req.file.size;
@@ -122,7 +122,7 @@ routerContenusEnseignant.post(
       urlFinale = u.slice(0, 500);
     }
 
-    const resultat = db
+    const resultat = await db
       .prepare(
         `INSERT INTO contenus (classe_id, enseignant_id, titre, type, corps, url, nom_fichier, taille, date_fin)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -139,7 +139,7 @@ routerContenusEnseignant.post(
         new Date(date_fin).toISOString()
       );
 
-    const contenu = db.prepare('SELECT * FROM contenus WHERE id = ?').get(resultat.lastInsertRowid);
+    const contenu = await db.prepare('SELECT * FROM contenus WHERE id = ?').get(resultat.lastInsertRowid);
     res.status(201).json({ contenu: avecEtat(contenu) });
   }
 );
@@ -148,11 +148,11 @@ routerContenusEnseignant.post(
 routerContenusEnseignant.put(
   '/classes/:id/contenus/:contenuId/republier',
   ...autorise,
-  (req, res) => {
-    const classe = classeDemandee(req, res);
+  async (req, res) => {
+    const classe = await classeDemandee(req, res);
     if (!classe) return;
 
-    const contenu = db
+    const contenu = await db
       .prepare('SELECT * FROM contenus WHERE id = ? AND classe_id = ?')
       .get(Number(req.params.contenuId), classe.id);
     if (!contenu) return res.status(404).json({ erreur: 'Contenu introuvable.' });
@@ -165,23 +165,23 @@ routerContenusEnseignant.put(
       return res.status(400).json({ erreur: 'La nouvelle date de fin doit etre dans le futur.' });
     }
 
-    db.prepare('UPDATE contenus SET date_fin = ? WHERE id = ?').run(
+    await db.prepare('UPDATE contenus SET date_fin = ? WHERE id = ?').run(
       new Date(date_fin).toISOString(),
       contenu.id
     );
-    const maj = db.prepare('SELECT * FROM contenus WHERE id = ?').get(contenu.id);
+    const maj = await db.prepare('SELECT * FROM contenus WHERE id = ?').get(contenu.id);
     res.json({ message: 'Contenu republie.', contenu: avecEtat(maj) });
   }
 );
 
 // GET /api/classes/:id/contenus — mes contenus de la classe (actifs + archives)
-routerContenusEnseignant.get('/classes/:id/contenus', ...autorise, (req, res) => {
-  const classe = classeDemandee(req, res);
+routerContenusEnseignant.get('/classes/:id/contenus', ...autorise, async (req, res) => {
+  const classe = await classeDemandee(req, res);
   if (!classe) return;
 
-  const contenus = db
+  const contenus = (await db
     .prepare('SELECT * FROM contenus WHERE classe_id = ? ORDER BY cree_le DESC')
-    .all(classe.id)
+    .all(classe.id))
     .map(avecEtat);
   res.json({ classe, contenus });
 });
@@ -191,48 +191,47 @@ routerContenusEnseignant.delete(
   '/classes/:id/contenus/:contenuId',
   ...autorise,
   async (req, res) => {
-    const classe = classeDemandee(req, res);
+    const classe = await classeDemandee(req, res);
     if (!classe) return;
 
-    const contenu = db
+    const contenu = await db
       .prepare('SELECT * FROM contenus WHERE id = ? AND classe_id = ?')
       .get(Number(req.params.contenuId), classe.id);
     if (!contenu) return res.status(404).json({ erreur: 'Contenu introuvable.' });
 
     if (contenu.url && contenu.url.startsWith('/uploads/')) {
       // On attend la suppression avant de repondre (pas de fichier fantome)
-      await fs.promises.rm(path.join(dossierUploads, path.basename(contenu.url)), {
-        force: true,
-      });
+      await supprimerFichier(path.basename(contenu.url));
     }
-    db.prepare('DELETE FROM contenus WHERE id = ?').run(contenu.id);
+    await db.prepare('DELETE FROM contenus WHERE id = ?').run(contenu.id);
     res.json({ message: `Contenu "${contenu.titre}" supprime.` });
   }
 );
 
 /* ==================== Eleve ==================== */
-export const routerContenusEleve = Router();
+export const routerContenusEleve = routerProtege();
 routerContenusEleve.use(requireAuth, requireRole('eleve'));
 
 // GET /api/eleve/mes-contenus — contenus en cours de ma classe (expire = efface)
-routerContenusEleve.get('/mes-contenus', (req, res) => {
-  const eleve = db.prepare('SELECT * FROM users WHERE id = ?').get(req.auth.id);
+routerContenusEleve.get('/mes-contenus', async (req, res) => {
+  const eleve = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.auth.id);
+  if (!eleve) return res.status(401).json({ erreur: 'Compte introuvable.' });
 
   if (!eleve.classe_id) {
     return res.json({ classe: null, contenus: [] });
   }
 
-  const classe = db.prepare('SELECT * FROM classes WHERE id = ?').get(eleve.classe_id);
+  const classe = await db.prepare('SELECT * FROM classes WHERE id = ?').get(eleve.classe_id);
   if (!classe) return res.json({ classe: null, contenus: [] });
 
   const maintenant = new Date().toISOString();
-  const contenus = db
+  const contenus = (await db
     .prepare(
       `SELECT * FROM contenus
        WHERE classe_id = ? AND (date_fin IS NULL OR date_fin > ?)
        ORDER BY cree_le DESC`
     )
-    .all(classe.id, maintenant)
+    .all(classe.id, maintenant))
     .map(avecEtat);
 
   res.json({

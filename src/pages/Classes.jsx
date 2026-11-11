@@ -5,14 +5,22 @@ import Entete from '../components/Entete.jsx';
 import { copier } from '../utils.js';
 
 const AUCUNE = '— Aucune —';
-const NIVEAUX = ['1er', '2eme', '3eme', '4eme', '5eme', '6eme', '2nde', '1ere', 'Terminale', 'Autre'];
+// Niveaux du secondaire en RDC (education de base + humanités) — « Autre » reste possible
+const NIVEAUX = ['7eme EB', '8eme EB', '1ere', '2eme', '3eme', '4eme', 'Autre'];
+// Options courantes de l'enseignement secondaire en RDC (Kongo Central comprises)
 const OPTIONS_CLASSE = [
   AUCUNE,
   'Scientifique',
   'Litteraire',
-  'Economie et gestion',
+  'Humanites Pedagogiques',
+  'Commerciale et Gestion',
+  'Education Physique',
+  'Electricite',
+  'Electronique',
+  'Mecanique Automobile',
+  'Construction Civile',
   'Informatique',
-  'Techniques industrielles',
+  'Secretariat Administration',
   'Autre',
 ];
 
@@ -242,7 +250,7 @@ export default function Classes() {
                       type="text"
                       value={niveauAutre}
                       onChange={(e) => setNiveauAutre(e.target.value)}
-                      placeholder="Ex. CM2"
+                      placeholder="Ex. 6eme"
                       required
                     />
                   </label>

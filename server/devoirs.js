@@ -1,7 +1,7 @@
-import { Router } from 'express';
 import { db } from './db.js';
 import { requireAuth, requireRole } from './security.js';
 import { classeDemandee } from './classes.js';
+import { routerProtege } from './erreurs.js';
 
 const autorise = [requireAuth, requireRole('enseignant')];
 
@@ -26,8 +26,8 @@ function publierDevoir(d) {
   };
 }
 
-function chargerQuestions(devoirId, cacherCorrige) {
-  const questions = db
+async function chargerQuestions(devoirId, cacherCorrige) {
+  const questions = await db
     .prepare('SELECT * FROM questions WHERE devoir_id = ? ORDER BY id')
     .all(devoirId);
   return questions.map((q) => {
@@ -38,11 +38,11 @@ function chargerQuestions(devoirId, cacherCorrige) {
 }
 
 /* ==================== Enseignant ==================== */
-export const routerDevoirsEnseignant = Router();
+export const routerDevoirsEnseignant = routerProtege();
 
 // POST /api/classes/:id/devoirs — creer un devoir (QCM ou ouvert) avec date de fin
-routerDevoirsEnseignant.post('/classes/:id/devoirs', ...autorise, (req, res) => {
-  const classe = classeDemandee(req, res);
+routerDevoirsEnseignant.post('/classes/:id/devoirs', ...autorise, async (req, res) => {
+  const classe = await classeDemandee(req, res);
   if (!classe) return;
 
   const { titre, type, consigne = '', date_fin, note_max, questions } = req.body || {};
@@ -94,7 +94,7 @@ routerDevoirsEnseignant.post('/classes/:id/devoirs', ...autorise, (req, res) => 
     }
   }
 
-  const resultat = db
+  const resultat = await db
     .prepare(
       `INSERT INTO devoirs (classe_id, enseignant_id, titre, type, consigne, date_fin, note_max)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -109,48 +109,60 @@ routerDevoirsEnseignant.post('/classes/:id/devoirs', ...autorise, (req, res) => 
       noteMax
     );
 
-  const insQuestion = db.prepare(
+  const insQuestion = await db.prepare(
     'INSERT INTO questions (devoir_id, enonce, choix, bonne_reponse) VALUES (?, ?, ?, ?)'
   );
   for (const q of listeQuestions) {
-    insQuestion.run(resultat.lastInsertRowid, q.enonce, JSON.stringify(q.choix), q.bonne_reponse);
+    await insQuestion.run(
+      resultat.lastInsertRowid,
+      q.enonce,
+      JSON.stringify(q.choix),
+      q.bonne_reponse
+    );
   }
 
-  const devoir = db.prepare('SELECT * FROM devoirs WHERE id = ?').get(resultat.lastInsertRowid);
+  const devoir = await db
+    .prepare('SELECT * FROM devoirs WHERE id = ?')
+    .get(resultat.lastInsertRowid);
   res.status(201).json({ devoir: publierDevoir(devoir) });
 });
 
 // GET /api/classes/:id/devoirs — tous les devoirs (actifs + archives)
-routerDevoirsEnseignant.get('/classes/:id/devoirs', ...autorise, (req, res) => {
-  const classe = classeDemandee(req, res);
+routerDevoirsEnseignant.get('/classes/:id/devoirs', ...autorise, async (req, res) => {
+  const classe = await classeDemandee(req, res);
   if (!classe) return;
 
-  const devoirs = db
-    .prepare(
-      `SELECT d.*,
-              (SELECT COUNT(*) FROM rendus r WHERE r.devoir_id = d.id) AS nb_rendus
-       FROM devoirs d
-       WHERE d.classe_id = ?
-       ORDER BY d.date_fin DESC`
-    )
-    .all(classe.id)
-    .map((d) => ({
-      ...publierDevoir(d),
-      nb_rendus: d.nb_rendus,
-      nb_eleves: db
-        .prepare("SELECT COUNT(*) AS n FROM users WHERE classe_id = ? AND role = 'eleve'")
-        .get(classe.id).n,
-    }));
+  const nbEleves = (
+    await db
+      .prepare("SELECT COUNT(*) AS n FROM users WHERE classe_id = ? AND role = 'eleve'")
+      .get(classe.id)
+  ).n;
+
+  const devoirs = (
+    await db
+      .prepare(
+        `SELECT d.*,
+                (SELECT COUNT(*) FROM rendus r WHERE r.devoir_id = d.id) AS nb_rendus
+         FROM devoirs d
+         WHERE d.classe_id = ?
+         ORDER BY d.date_fin DESC`
+      )
+      .all(classe.id)
+  ).map((d) => ({
+    ...publierDevoir(d),
+    nb_rendus: d.nb_rendus,
+    nb_eleves: nbEleves,
+  }));
 
   res.json({ devoirs });
 });
 
 // PUT /api/classes/:id/devoirs/:did — republier (nouvelle date de fin) ou modifier
-routerDevoirsEnseignant.put('/classes/:id/devoirs/:did', ...autorise, (req, res) => {
-  const classe = classeDemandee(req, res);
+routerDevoirsEnseignant.put('/classes/:id/devoirs/:did', ...autorise, async (req, res) => {
+  const classe = await classeDemandee(req, res);
   if (!classe) return;
 
-  const devoir = db
+  const devoir = await db
     .prepare('SELECT * FROM devoirs WHERE id = ? AND classe_id = ?')
     .get(Number(req.params.did), classe.id);
   if (!devoir) return res.status(404).json({ erreur: 'Devoir introuvable.' });
@@ -161,7 +173,7 @@ routerDevoirsEnseignant.put('/classes/:id/devoirs/:did', ...autorise, (req, res)
     if (!dateValide(date_fin)) {
       return res.status(400).json({ erreur: 'Date de fin invalide.' });
     }
-    db.prepare('UPDATE devoirs SET date_fin = ? WHERE id = ?').run(
+    await db.prepare('UPDATE devoirs SET date_fin = ? WHERE id = ?').run(
       new Date(date_fin).toISOString(),
       devoir.id
     );
@@ -170,19 +182,19 @@ routerDevoirsEnseignant.put('/classes/:id/devoirs/:did', ...autorise, (req, res)
     if (String(titre).trim().length < 2) {
       return res.status(400).json({ erreur: 'Titre trop court.' });
     }
-    db.prepare('UPDATE devoirs SET titre = ? WHERE id = ?').run(
+    await db.prepare('UPDATE devoirs SET titre = ? WHERE id = ?').run(
       String(titre).trim().slice(0, 200),
       devoir.id
     );
   }
   if (consigne !== undefined) {
-    db.prepare('UPDATE devoirs SET consigne = ? WHERE id = ?').run(
+    await db.prepare('UPDATE devoirs SET consigne = ? WHERE id = ?').run(
       String(consigne).slice(0, 50000),
       devoir.id
     );
   }
 
-  const maj = db.prepare('SELECT * FROM devoirs WHERE id = ?').get(devoir.id);
+  const maj = await db.prepare('SELECT * FROM devoirs WHERE id = ?').get(devoir.id);
   res.json({
     message: 'Devoir republie.',
     devoir: publierDevoir(maj),
@@ -190,36 +202,39 @@ routerDevoirsEnseignant.put('/classes/:id/devoirs/:did', ...autorise, (req, res)
 });
 
 // DELETE /api/classes/:id/devoirs/:did
-routerDevoirsEnseignant.delete('/classes/:id/devoirs/:did', ...autorise, (req, res) => {
-  const classe = classeDemandee(req, res);
+routerDevoirsEnseignant.delete('/classes/:id/devoirs/:did', ...autorise, async (req, res) => {
+  const classe = await classeDemandee(req, res);
   if (!classe) return;
 
-  const devoir = db
+  const devoir = await db
     .prepare('SELECT * FROM devoirs WHERE id = ? AND classe_id = ?')
     .get(Number(req.params.did), classe.id);
   if (!devoir) return res.status(404).json({ erreur: 'Devoir introuvable.' });
 
-  db.prepare('DELETE FROM devoirs WHERE id = ?').run(devoir.id);
+  // Nettoyage explicite (marche aussi sans cascade FK, base distante)
+  await db.prepare('DELETE FROM questions WHERE devoir_id = ?').run(devoir.id);
+  await db.prepare('DELETE FROM rendus WHERE devoir_id = ?').run(devoir.id);
+  await db.prepare('DELETE FROM devoirs WHERE id = ?').run(devoir.id);
   res.json({ message: `Devoir "${devoir.titre}" supprime.` });
 });
 
 // GET /api/classes/:id/devoirs/:did/rendus — suivi complet (avec les "manques")
-routerDevoirsEnseignant.get('/classes/:id/devoirs/:did/rendus', ...autorise, (req, res) => {
-  const classe = classeDemandee(req, res);
+routerDevoirsEnseignant.get('/classes/:id/devoirs/:did/rendus', ...autorise, async (req, res) => {
+  const classe = await classeDemandee(req, res);
   if (!classe) return;
 
-  const devoir = db
+  const devoir = await db
     .prepare('SELECT * FROM devoirs WHERE id = ? AND classe_id = ?')
     .get(Number(req.params.did), classe.id);
   if (!devoir) return res.status(404).json({ erreur: 'Devoir introuvable.' });
 
-  const eleves = db
+  const eleves = await db
     .prepare(
       "SELECT id, nom, matricule FROM users WHERE classe_id = ? AND role = 'eleve' ORDER BY nom"
     )
     .all(classe.id);
 
-  const rendus = db
+  const rendus = await db
     .prepare(
       `SELECT r.*, u.nom AS eleve_nom, u.matricule AS eleve_matricule
        FROM rendus r JOIN users u ON u.id = r.eleve_id
@@ -257,13 +272,13 @@ routerDevoirsEnseignant.get('/classes/:id/devoirs/:did/rendus', ...autorise, (re
   res.json({
     devoir: publierDevoir(devoir),
     rendus: liste,
-    questions: devoir.type === 'qcm' ? chargerQuestions(devoir.id, false) : [],
+    questions: devoir.type === 'qcm' ? await chargerQuestions(devoir.id, false) : [],
   });
 });
 
 // PUT /api/rendus/:rid/corriger — correction d'un devoir ouvert par l'enseignant
-routerDevoirsEnseignant.put('/rendus/:rid/corriger', ...autorise, (req, res) => {
-  const rendu = db
+routerDevoirsEnseignant.put('/rendus/:rid/corriger', ...autorise, async (req, res) => {
+  const rendu = await db
     .prepare(
       `SELECT r.*, d.type AS devoir_type, d.note_max, d.classe_id
        FROM rendus r JOIN devoirs d ON d.id = r.devoir_id
@@ -272,7 +287,7 @@ routerDevoirsEnseignant.put('/rendus/:rid/corriger', ...autorise, (req, res) => 
     .get(Number(req.params.rid));
   if (!rendu) return res.status(404).json({ erreur: 'Rendu introuvable.' });
 
-  const classe = db
+  const classe = await db
     .prepare('SELECT id FROM classes WHERE id = ? AND enseignant_id = ?')
     .get(rendu.classe_id, req.auth.id);
   if (!classe) return res.status(404).json({ erreur: 'Rendu introuvable.' });
@@ -287,36 +302,38 @@ routerDevoirsEnseignant.put('/rendus/:rid/corriger', ...autorise, (req, res) => 
     return res.status(400).json({ erreur: `La note doit etre entre 0 et ${rendu.note_max}.` });
   }
 
-  db.prepare(
-    "UPDATE rendus SET note = ?, commentaire = ?, statut = 'corrige' WHERE id = ?"
-  ).run(noteNum, String(commentaire).slice(0, 2000), rendu.id);
+  await db
+    .prepare("UPDATE rendus SET note = ?, commentaire = ?, statut = 'corrige' WHERE id = ?")
+    .run(noteNum, String(commentaire).slice(0, 2000), rendu.id);
 
-  const maj = db.prepare('SELECT * FROM rendus WHERE id = ?').get(rendu.id);
+  const maj = await db.prepare('SELECT * FROM rendus WHERE id = ?').get(rendu.id);
   res.json({ message: 'Devoir corrige.', rendu: maj });
 });
 
 /* ==================== Eleve ==================== */
-export const routerDevoirsEleve = Router();
+export const routerDevoirsEleve = routerProtege();
 routerDevoirsEleve.use(requireAuth, requireRole('eleve'));
 
 // GET /api/eleve/devoirs — devoirs en cours de ma classe (expire = efface)
-routerDevoirsEleve.get('/devoirs', (req, res) => {
-  const eleve = db.prepare('SELECT * FROM users WHERE id = ?').get(req.auth.id);
+routerDevoirsEleve.get('/devoirs', async (req, res) => {
+  const eleve = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.auth.id);
+  if (!eleve) return res.status(401).json({ erreur: 'Compte introuvable.' });
   if (!eleve.classe_id) return res.json({ devoirs: [] });
 
   const maintenant = new Date().toISOString();
-  const devoirs = db
+  const devoirs = await db
     .prepare(
       'SELECT * FROM devoirs WHERE classe_id = ? AND date_fin > ? ORDER BY date_fin'
     )
     .all(eleve.classe_id, maintenant);
 
-  const resultat = devoirs.map((d) => {
-    const rendu = db
+  const resultat = [];
+  for (const d of devoirs) {
+    const rendu = await db
       .prepare('SELECT * FROM rendus WHERE devoir_id = ? AND eleve_id = ?')
       .get(d.id, eleve.id);
     const dejaRendu = !!rendu;
-    return {
+    resultat.push({
       ...publierDevoir(d),
       statut: rendu ? rendu.statut : 'a_faire',
       mon_rendu: rendu
@@ -329,18 +346,19 @@ routerDevoirsEleve.get('/devoirs', (req, res) => {
         : null,
       questions:
         d.type === 'qcm'
-          ? chargerQuestions(d.id, !dejaRendu) // bonne reponse cachee tant que non rendu
+          ? await chargerQuestions(d.id, !dejaRendu) // bonne reponse cachee tant que non rendu
           : [],
-    };
-  });
+    });
+  }
 
   res.json({ devoirs: resultat });
 });
 
 // POST /api/eleve/devoirs/:did/rendre — soumettre sa reponse avant la date de fin
-routerDevoirsEleve.post('/devoirs/:did/rendre', (req, res) => {
-  const eleve = db.prepare('SELECT * FROM users WHERE id = ?').get(req.auth.id);
-  const devoir = db
+routerDevoirsEleve.post('/devoirs/:did/rendre', async (req, res) => {
+  const eleve = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.auth.id);
+  if (!eleve) return res.status(401).json({ erreur: 'Compte introuvable.' });
+  const devoir = await db
     .prepare('SELECT * FROM devoirs WHERE id = ?')
     .get(Number(req.params.did));
 
@@ -350,7 +368,7 @@ routerDevoirsEleve.post('/devoirs/:did/rendre', (req, res) => {
   if (new Date(devoir.date_fin).getTime() <= Date.now()) {
     return res.status(400).json({ erreur: 'La date de fin est depassee : devoir non accepte.' });
   }
-  const deja = db
+  const deja = await db
     .prepare('SELECT id FROM rendus WHERE devoir_id = ? AND eleve_id = ?')
     .get(devoir.id, eleve.id);
   if (deja) {
@@ -361,7 +379,7 @@ routerDevoirsEleve.post('/devoirs/:did/rendre', (req, res) => {
 
   // ---- QCM : correction automatique ----
   if (devoir.type === 'qcm') {
-    const questions = db
+    const questions = await db
       .prepare('SELECT * FROM questions WHERE devoir_id = ? ORDER BY id')
       .all(devoir.id);
 
@@ -388,9 +406,11 @@ routerDevoirsEleve.post('/devoirs/:did/rendre', (req, res) => {
     const note = Math.round((bonnes / questions.length) * devoir.note_max * 100) / 100;
     const reponseJson = JSON.stringify(reponse.map((r) => Number(r)));
 
-    db.prepare(
-      "INSERT INTO rendus (devoir_id, eleve_id, reponse, note, statut) VALUES (?, ?, ?, ?, 'rendu')"
-    ).run(devoir.id, eleve.id, reponseJson, note);
+    await db
+      .prepare(
+        "INSERT INTO rendus (devoir_id, eleve_id, reponse, note, statut) VALUES (?, ?, ?, ?, 'rendu')"
+      )
+      .run(devoir.id, eleve.id, reponseJson, note);
 
     return res.status(201).json({
       message: 'Devoir rendu.',
@@ -411,9 +431,9 @@ routerDevoirsEleve.post('/devoirs/:did/rendre', (req, res) => {
     return res.status(400).json({ erreur: 'Votre reponse est trop courte (10 caracteres min).' });
   }
 
-  db.prepare(
-    "INSERT INTO rendus (devoir_id, eleve_id, reponse, statut) VALUES (?, ?, ?, 'rendu')"
-  ).run(devoir.id, eleve.id, texte.slice(0, 50000));
+  await db
+    .prepare("INSERT INTO rendus (devoir_id, eleve_id, reponse, statut) VALUES (?, ?, ?, 'rendu')")
+    .run(devoir.id, eleve.id, texte.slice(0, 50000));
 
   res.status(201).json({
     message: 'Devoir soumis. En attente de correction par votre enseignant.',

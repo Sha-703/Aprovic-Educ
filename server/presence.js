@@ -1,8 +1,8 @@
-import { Router } from 'express';
 import { db } from './db.js';
 import { requireAuth, requireRole } from './security.js';
+import { routerProtege } from './erreurs.js';
 
-export const routerPresence = Router();
+export const routerPresence = routerProtege();
 
 // Une session = periode active. Si plus de 10 min sans heartbeat, nouvelle session.
 const SEUIL_SESSION = 10 * 60;
@@ -10,23 +10,23 @@ const SEUIL_SESSION = 10 * 60;
 const SEUIL_EN_LIGNE = 120;
 
 // POST /api/presence — heartbeat envoye par la PWA toutes les 30 s
-routerPresence.post('/presence', requireAuth, (req, res) => {
+routerPresence.post('/presence', requireAuth, async (req, res) => {
   const maintenant = new Date();
   const iso = maintenant.toISOString();
 
-  const derniere = db
+  const derniere = await db
     .prepare('SELECT * FROM presences WHERE user_id = ? ORDER BY id DESC LIMIT 1')
     .get(req.auth.id);
 
   if (derniere) {
     const ecart = (maintenant - new Date(derniere.derniere_activite)) / 1000;
     if (ecart < SEUIL_SESSION) {
-      db.prepare('UPDATE presences SET derniere_activite = ? WHERE id = ?').run(iso, derniere.id);
+      await db.prepare('UPDATE presences SET derniere_activite = ? WHERE id = ?').run(iso, derniere.id);
       return res.json({ ok: true, session: 'continue' });
     }
   }
 
-  db.prepare('INSERT INTO presences (user_id, debut, derniere_activite) VALUES (?, ?, ?)').run(
+  await db.prepare('INSERT INTO presences (user_id, debut, derniere_activite) VALUES (?, ?, ?)').run(
     req.auth.id,
     iso,
     iso
@@ -35,8 +35,8 @@ routerPresence.post('/presence', requireAuth, (req, res) => {
 });
 
 // GET /api/presence/eleves — stats de connexion de tous les eleves de l'enseignant
-routerPresence.get('/presence/eleves', requireAuth, requireRole('enseignant'), (req, res) => {
-  const eleves = db
+routerPresence.get('/presence/eleves', requireAuth, requireRole('enseignant'), async (req, res) => {
+  const eleves = await db
     .prepare(
       `SELECT u.id, u.nom, u.matricule, c.id AS classe_id, c.nom AS classe_nom
        FROM users u
@@ -49,7 +49,7 @@ routerPresence.get('/presence/eleves', requireAuth, requireRole('enseignant'), (
   const ids = eleves.map((e) => e.id);
   const presences =
     ids.length > 0
-      ? db
+      ? await db
           .prepare(
             `SELECT user_id, debut, derniere_activite FROM presences
              WHERE user_id IN (${ids.map(() => '?').join(',')})`

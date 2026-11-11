@@ -20,7 +20,7 @@ export function suiteAleatoire(longueur) {
  * @param {string} prefixe  prefixe du matricule (ex. "ENS" ou le code de la classe)
  * @returns {string}
  */
-export function genererMatricule(prefixe) {
+export async function genererMatricule(prefixe) {
   const nettoye = String(prefixe || 'AP')
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '')
@@ -29,21 +29,21 @@ export function genererMatricule(prefixe) {
   let matricule;
   do {
     matricule = `${nettoye}-${suiteAleatoire(6)}`;
-  } while (matriculeExiste(matricule));
+  } while (await matriculeExiste(matricule));
 
   return matricule;
 }
 
 /** Vrai si le code de classe est deja utilise. */
-export function codeClasseExiste(code) {
-  return db.prepare('SELECT id FROM classes WHERE code = ?').get(code) !== undefined;
+export async function codeClasseExiste(code) {
+  return (await db.prepare('SELECT id FROM classes WHERE code = ?').get(code)) !== undefined;
 }
 
 /** Genere un code de classe court et unique (ex. "K7MP"). */
-export function genererCodeClasse() {
+export async function genererCodeClasse() {
   let code;
   do {
     code = suiteAleatoire(4);
-  } while (codeClasseExiste(code));
+  } while (await codeClasseExiste(code));
   return code;
 }
