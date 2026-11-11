@@ -210,5 +210,27 @@ const { statut: sSupRech } = await appel(`/classes/${dClRech.classe.id}`, {
 });
 verifier('Classe de test supprimee apres la recherche', sSupRech === 200);
 
+// 20. Page d'etat /health — reponse JSON pour Render et les moniteurs
+const resHealth = await fetch('http://localhost:3001/health');
+const dHealth = await resHealth.json();
+verifier(
+  'GET /health (JSON)',
+  resHealth.status === 200 && dHealth.etat === 'ok' && dHealth.base_accessible === true,
+  `${dHealth.base} · ${dHealth.stockage}`
+);
+
+// 21. Page d'etat /health — page HTML dans le navigateur
+const resHealthHtml = await fetch('http://localhost:3001/health', {
+  headers: { Accept: 'text/html,application/xhtml+xml' },
+});
+const htmlHealth = await resHealthHtml.text();
+verifier(
+  'GET /health rend une page HTML',
+  resHealthHtml.status === 200 &&
+    String(resHealthHtml.headers.get('content-type')).includes('text/html') &&
+    htmlHealth.includes('Aprovic Educ') &&
+    htmlHealth.includes('operationnel')
+);
+
 console.log(echecs === 0 ? '\nTOUS LES TESTS PASSENT' : `\n${echecs} TEST(S) EN ECHEC`);
 process.exit(echecs === 0 ? 0 : 1);

@@ -15,6 +15,8 @@ Memes principes que Google Classroom, mais pensee pour le francais.
 - **Devoirs ouverts** : reponse redigee, **correction manuelle** par l'enseignant (note + commentaire)
 - **Echeance** : apres la date de fin, contenu/devoir **disparait pour l'eleve**, est **archive pour l'enseignant** qui peut le **republier** avec une nouvelle date ; rendu non soumis = statut **« manque »**
 - **Statistiques** : connexions, sessions et temps passe par eleve (heartbeat toutes les 30 s)
+- **Recherche globale** : barre dans l'en-tete pour trouver une classe, un eleve, un devoir ou un contenu — chaque resultat ouvre la bonne page (statistiques de l'eleve, suivi du devoir…)
+- **Page `/health`** : etat du service en temps reel (JSON pour Render, page HTML dans le navigateur) avec test reel de la base et du stockage
 - Page **Reglages** : profil (nom, e-mail, ecole) + mot de passe
 - PWA : manifest + service worker (installable, mode hors-ligne)
 
@@ -38,7 +40,7 @@ Le repo contient un blueprint `render.yaml` : API + front sur le **meme service*
 
 1. Pousse le projet sur GitHub (deja fait)
 2. Sur [render.com](https://dashboard.render.com) → **New + Blueprint** → connecte le repo `Sha-703/Aprovic-Educ`
-3. Render lit `render.yaml` tout seul (Node 24, build, `/api/sante` comme health check) → **Deploy**
+3. Render lit `render.yaml` tout seul (Node 24, build, `/health` comme health check) → **Deploy**
 4. L'app est servie sur `https://aprovic-educ.onrender.com` (HTTPS = PWA installable)
 
 Notes importantes du plan gratuit :
@@ -121,5 +123,5 @@ node server/test-phase3.mjs # Phase 3
 node server/test-phase4.mjs # Phases 4-5 (devoirs + echeances)
 ```
 
-98 tests au total. Les mêmes suites passent en mode distant : lance le serveur avec
+106 tests au total. Les mêmes suites passent en mode distant : lance le serveur avec
 `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` dans l'environnement avant de lancer les tests.
