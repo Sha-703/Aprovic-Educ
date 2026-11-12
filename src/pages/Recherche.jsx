@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setToken } from '../api.js';
-import Entete from '../components/Entete.jsx';
 import { copier, formaterDate, formaterDuree } from '../utils.js';
 
 const STATUTS_ELEVE = {
@@ -18,7 +17,8 @@ function BadgeStatut({ statut }) {
 
 /** Fiche d'un eleve : classe, devoirs (rendus/pas rendus + notes) et performances. */
 function FicheEleve({ fiche }) {
-  const { eleve, classe, devoirs, performances } = fiche;
+  const { eleve, classe, devoirs, performances } = fiche || {};
+  if (!eleve) return null;
   const rendus = devoirs.filter((d) => d.statut === 'rendu' || d.statut === 'corrige').length;
   const notes = devoirs
     .filter((d) => d.note !== null && d.note !== undefined && d.note_max > 0)
@@ -38,7 +38,7 @@ function FicheEleve({ fiche }) {
           <Link to={`/stats?eleve=${eleve.matricule}`} className="btn-secondaire btn-petit">
             📊 Statistiques
           </Link>
-          <Link to={`/recherche?classe=${classe.id}`} className="btn-secondaire btn-petit">
+          <Link to={`/recherche?classe=${classe?.id}`} className="btn-secondaire btn-petit">
             📚 Voir la classe
           </Link>
         </div>
@@ -47,15 +47,15 @@ function FicheEleve({ fiche }) {
       <section className="resume-stats">
         <div className="stat-carte">
           <span>Classe</span>
-          <strong className="texte">{classe.nom}</strong>
+          <strong className="texte">{classe?.nom}</strong>
         </div>
         <div className="stat-carte">
           <span>Niveau</span>
-          <strong className="texte">{classe.niveau || '—'}</strong>
+          <strong className="texte">{classe?.niveau || '—'}</strong>
         </div>
         <div className="stat-carte">
           <span>Option</span>
-          <strong className="texte">{classe.option_classe || '—'}</strong>
+          <strong className="texte">{classe?.option_classe || '—'}</strong>
         </div>
         <div className="stat-carte">
           <span>Devoirs rendus</span>
@@ -73,18 +73,18 @@ function FicheEleve({ fiche }) {
         )}
         <div className="stat-carte">
           <span>Temps passe</span>
-          <strong>{formaterDuree(performances.secondes)}</strong>
+          <strong>{formaterDuree(performances?.secondes || 0)}</strong>
         </div>
         <div className="stat-carte">
           <span>En ligne</span>
-          <strong className={performances.en_ligne ? 'en-ligne' : ''}>
-            {performances.en_ligne ? '● Oui' : '○ Non'}
+          <strong className={performances?.en_ligne ? 'en-ligne' : ''}>
+            {performances?.en_ligne ? '● Oui' : '○ Non'}
           </strong>
         </div>
         <div className="stat-carte">
           <span>Derniere connexion</span>
           <strong className="texte">
-            {performances.derniere_activite ? formaterDate(performances.derniere_activite) : '—'}
+            {performances?.derniere_activite ? formaterDate(performances.derniere_activite) : '—'}
           </strong>
         </div>
       </section>
@@ -144,15 +144,15 @@ function FicheEleve({ fiche }) {
 
 /** Fiche d'une classe : niveau, option, effectif (liste des eleves), compteurs. */
 function FicheClasse({ fiche }) {
-  const { classe, eleves, nb_devoirs, nb_contenus } = fiche;
+  const { classe, eleves, nb_devoirs, nb_contenus } = fiche || {};
 
   return (
     <>
       <div className="titre-page">
         <div>
-          <h1>📚 {classe.nom}</h1>
+          <h1>📚 {classe?.nom}</h1>
           <p className="texte-doux">
-            Fiche classe · code <code className="matricule-fiche">{classe.code}</code>
+            Fiche classe · code <code className="matricule-fiche">{classe?.code}</code>
           </p>
         </div>
         <div className="boutons-titre">
@@ -165,15 +165,15 @@ function FicheClasse({ fiche }) {
       <section className="resume-stats">
         <div className="stat-carte">
           <span>Eleves</span>
-          <strong>{eleves.length}</strong>
+          <strong>{eleves?.length || 0}</strong>
         </div>
         <div className="stat-carte">
           <span>Niveau</span>
-          <strong className="texte">{classe.niveau || '—'}</strong>
+          <strong className="texte">{classe?.niveau || '—'}</strong>
         </div>
         <div className="stat-carte">
           <span>Option</span>
-          <strong className="texte">{classe.option_classe || '—'}</strong>
+          <strong className="texte">{classe?.option_classe || '—'}</strong>
         </div>
         <div className="stat-carte">
           <span>Devoirs en cours</span>
@@ -187,30 +187,30 @@ function FicheClasse({ fiche }) {
 
       <section className="carte-bloc">
         <div className="bloc-tete">
-          <h2>Eleves ({eleves.length})</h2>
+          <h2>Eleves ({eleves?.length || 0})</h2>
           <p className="texte-doux">Cliquez sur « Fiche » pour voir les performances d'un eleve.</p>
         </div>
-        {eleves.length === 0 ? (
+        {eleves?.length === 0 ? (
           <p className="vide">Aucun eleve dans cette classe pour le moment.</p>
         ) : (
           <ul className="liste-eleves">
-            {eleves.map((e) => (
-              <li key={e.id}>
+            {eleves?.map((e) => (
+              <li key={e?.id}>
                 <span className="pastille-initiale" aria-hidden="true">
-                  {e.nom.trim().charAt(0).toUpperCase()}
+                  {e?.nom?.trim().charAt(0).toUpperCase() || '—'}
                 </span>
-                <span className="nom-eleve">{e.nom}</span>
+                <span className="nom-eleve">{e?.nom || '—'}</span>
                 <button
                   type="button"
                   className="matricule-eleve"
                   title="Cliquer pour copier le matricule"
                   onClick={async () => {
-                    await copier(e.matricule);
+                    await copier(e?.matricule || '');
                   }}
                 >
-                  {e.matricule}
+                  {e?.matricule || '—'}
                 </button>
-                <Link to={`/recherche?eleve=${e.matricule}`} className="btn-secondaire btn-petit">
+                <Link to={`/recherche?eleve=${e?.matricule}`} className="btn-secondaire btn-petit">
                   Fiche
                 </Link>
               </li>
