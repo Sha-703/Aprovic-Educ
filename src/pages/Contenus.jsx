@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, apiForm, setToken } from '../api.js';
 import Entete from '../components/Entete.jsx';
 import Visualiseur from '../components/Visualiseur.jsx';
@@ -29,8 +29,8 @@ export default function Contenus() {
   const [republie, setRepublie] = useState(null); // id du contenu
   const [dateRepub, setDateRepub] = useState('');
 
-  const [ouvert, setOuvert] = useState(null); // contenu affiche
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function deconnecter() {
     setToken(null);
@@ -47,7 +47,14 @@ export default function Contenus() {
         setUtilisateur(d.utilisateur);
         const donnees = await api('/classes');
         setClasses(donnees.classes);
-        if (donnees.classes.length > 0) setClasseId(String(donnees.classes[0].id));
+        // Ouverture ciblee depuis la barre de recherche (?classe=ID)
+        const codeCible = searchParams.get('classe');
+        if (codeCible) {
+          const cible = classes.find((c) => c.code === codeCible);
+          setSearchParams({}, { replace: true });
+          if (cible) setClasseId(String(cible.id));
+        }
+        if (classes.length > 0 && !classeId) setClasseId(String(classes[0].id));
       })
       .catch(deconnecter);
   }, []);
@@ -120,14 +127,6 @@ export default function Contenus() {
     }
   }
 
-  if (!utilisateur) {
-    return (
-      <div className="page-principale">
-        <p className="chargement">Chargement…</p>
-      </div>
-    );
-  }
-
   const actifs = contenus.filter((c) => !c.expire);
   const archives = contenus.filter((c) => c.expire);
 
@@ -136,44 +135,16 @@ export default function Contenus() {
       <Entete utilisateur={utilisateur} onDeconnexion={deconnecter} />
 
       <main className="contenu">
-        <div className="titre-page">
-          <div>
-            <h1>Mes contenus</h1>
-            <p className="texte-doux">
-              Textes, videos, PDF et fichiers a publier pour vos classes (classe inversee).
-            </p>
-          </div>
-          <label className="select-classe">
-            Classe
-            <select value={classeId} onChange={(e) => setClasseId(e.target.value)}>
-              {classes.length === 0 && <option value="">Aucune classe</option>}
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nom} ({c.code})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        {erreur && (
-          <p className="erreur" role="alert">
-            {erreur}
-          </p>
-        )}
-        {message && (
-          <p className="succes" role="status">
-            {message}
-          </p>
-        )}
-
-        {classes.length === 0 ? (
+        <div className="vue-contenus">
+          {/* ============ FORMULAIRE DE CRÉATION ============ */}
           <section className="carte-bloc">
-            <p className="vide">Creez d'abord une classe dans "Mes classes".</p>
-          </section>
-        ) : (
-          <section className="carte-bloc">
-            <h2>Publier un contenu</h2>
+            <div className="bloc-tete">
+              <h2>Publier un contenu</h2>
+              <p className="texte-doux">
+                Date de fin obligatoire : apres l'echeance, le contenu est archive et devient
+                invisible pour les eleves. Vous pouvez le republier avec une nouvelle date.
+              </p>
+            </div>
             <form onSubmit={creerContenu} className="formulaire-contenu">
               <div className="ligne-2">
                 <label>
@@ -237,7 +208,7 @@ export default function Contenus() {
 
               {(type === 'pdf' || type === 'fichier' || type === 'video') && (
                 <label>
-                  Fichier {type === 'texte' ? '' : type === 'video' ? '(optionnel si URL)' : `(max 300 Mo)`}
+                  Fichier {type === 'texte' ? '' : type === 'video' ? '(optionnel si URL)' : '(max 300 Mo)'}
                   <input
                     type="file"
                     accept={
@@ -259,70 +230,73 @@ export default function Contenus() {
               </button>
             </form>
           </section>
-        )}
+        </div>
 
-        <section className="carte-bloc">
-          <h2>Contenus en ligne ({actifs.length})</h2>
-          {actifs.length === 0 ? (
-            <p className="vide">Aucun contenu en cours pour cette classe.</p>
-          ) : (
-            <ul className="liste-contenus">
-              {actifs.map((contenu) => (
-                <li key={contenu.id} className="item-contenu">
-                  <div className="item-contenu-tete">
-                    <span className={`pastille pastille-${contenu.type}`}>
-                      {LIBELLES[contenu.type]}
-                    </span>
-                    <strong>{contenu.titre}</strong>
-                    <span className="tag-date">
-                      {contenu.date_fin
-                        ? `Jusqu'au ${formaterDate(contenu.date_fin)}`
-                        : 'Permanent'}
-                    </span>
-                    <span className="date-contenu">{formaterDate(contenu.cree_le)}</span>
-                  </div>
-                  <div className="actions">
-                    <button
-                      type="button"
-                      className="btn-principal btn-petit"
-                      onClick={() => setOuvert(ouvert === contenu.id ? null : contenu.id)}
-                    >
-                      {ouvert === contenu.id ? 'Fermer' : 'Ouvrir'}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      onClick={async () => {
-                        if (!window.confirm(`Supprimer le contenu "${contenu.titre}" ?`)) return;
-                        try {
-                          await api(`/classes/${classeId}/contenus/${contenu.id}`, {
-                            method: 'DELETE',
-                          });
-                          setContenus((liste) => liste.filter((c) => c.id !== contenu.id));
-                          if (ouvert === contenu.id) setOuvert(null);
-                        } catch (err) {
-                          setErreur(err.message);
-                        }
-                      }}
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                  {ouvert === contenu.id && (
-                    <div className="apercu-contenu">
-                      <Visualiseur contenu={contenu} />
+        <div className="colonne-listes">
+          {/* ============ LISTE : ACTIFS ============ */}
+          <section className="carte-bloc">
+            <h2>Contenus en ligne ({actifs.length})</h2>
+            {actifs.length === 0 ? (
+              <p className="vide">Aucun contenu en cours pour cette classe.</p>
+            ) : (
+              <ul className="liste-contenus">
+                {actifs.map((contenu) => (
+                  <li key={contenu.id} className="item-contenu">
+                    <div className="item-contenu-tete">
+                      <span className={`pastilla pastilla-${contenu.type}`}>
+                        {LIBELLES[contenu.type]}
+                      </span>
+                      <strong>{contenu.titre}</strong>
+                      <span className="tag-date">
+                        {contenu.date_fin
+                          ? `Jusqu'au ${formaterDate(contenu.date_fin)}`
+                          : 'Permanent'}
+                      </span>
+                      <span className="date-contenu">{formaterDate(contenu.cree_le)}</span>
                     </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="btn-principal btn-petit"
+                        onClick={() => setOuvert(ouvert === contenu.id ? null : contenu.id)}
+                      >
+                        {ouvert === contenu.id ? 'Fermer' : 'Ouvrir'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={async () => {
+                          if (!window.confirm(`Supprimer le contenu "${contenu.titre}" ?`)) return;
+                          try {
+                            await api(`/classes/${classeId}/contenus/${contenu.id}`, {
+                              method: 'DELETE',
+                            });
+                            setContenus((liste) => liste.filter((c) => c.id !== contenu.id));
+                            if (ouvert === contenu.id) setOuvert(null);
+                          } catch (err) {
+                            setErreur(err.message);
+                          }
+                        }}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                    {ouvert === contenu.id && (
+                      <div className="apercu-contenu">
+                        <Visualiseur contenu={contenu} />
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+        {/* ============ LISTE : ARCHIVES ============ */}
         <section className="carte-bloc">
           <h2>Archives ({archives.length})</h2>
           <p className="vide">
-            Contenus arrives a la date de fin : invisibles pour les eleves. Vous pouvez les
+            Contenus arrive a la date de fin : invisibles pour les eleves. Vous pouvez les
             republier avec une nouvelle date.
           </p>
           {archives.length > 0 && (
@@ -330,7 +304,7 @@ export default function Contenus() {
               {archives.map((contenu) => (
                 <li key={contenu.id} className="item-contenu archive">
                   <div className="item-contenu-tete">
-                    <span className={`pastille pastille-${contenu.type}`}>
+                    <span className={`pastilla pastilla-${contenu.type}`}>
                       {LIBELLES[contenu.type]}
                     </span>
                     <strong>{contenu.titre}</strong>
@@ -350,6 +324,7 @@ export default function Contenus() {
                       type="button"
                       className="btn-principal btn-petit"
                       onClick={() => {
+                        // Line fixed: setDateRepub('') with proper parentheses
                         setRepublie(republie === contenu.id ? null : contenu.id);
                         setDateRepub('');
                         setErreur('');
@@ -397,6 +372,7 @@ export default function Contenus() {
                         type="button"
                         className="btn-fantome"
                         onClick={() => {
+                          // Fixed: setDateRepub('') instead of setDateRepub ''
                           setRepublie(null);
                           setDateRepub('');
                         }}

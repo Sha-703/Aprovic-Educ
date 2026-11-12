@@ -2030,6 +2030,26 @@ button {
   background: #fff;
 }
 
+/* ===== Contenus : vue deux colonnes ===== */
+.vue-contenus {
+  display: grid;
+  grid-template-columns: minmax(340px, 1.1fr) minmax(0, 1.5fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.colonne-listes {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (max-width: 900px) {
+  .vue-contenus {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ===== Barre de recherche globale (en-tete) ===== */
 .zone-recherche {
   position: relative;
